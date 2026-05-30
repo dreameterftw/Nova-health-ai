@@ -11,7 +11,7 @@
 
 ## 🌟 Features
 
-### 🧠 **NORA - AI Companion**
+### 🧠 **NOVA - AI Companion**
 - Private, empathetic chat powered by Ollama (Llama 3.2)
 - Reads your medical reports and tracks medications
 - Adjusts tone based on your emotional state
