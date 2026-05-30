@@ -1,0 +1,75 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user owns the file
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Helper function to validate file size (max 10MB)
+    function isValidSize() {
+      return request.resource.size < 10 * 1024 * 1024;
+    }
+    
+    // Helper function to validate file type (PDF, images, text)
+    function isValidFileType() {
+      return request.resource.contentType.matches('application/pdf') ||
+             request.resource.contentType.matches('image/.*') ||
+             request.resource.contentType.matches('text/plain');
+    }
+    
+    // Medical documents - users can only access their own files
+    match /medical-documents/{userId}/{documentId} {
+      // Read: User must own the file
+      allow read: if isOwner(userId);
+      
+      // Write: User must own the file, file must be valid type and size
+      allow write: if isOwner(userId) && 
+                      isValidSize() && 
+                      isValidFileType();
+      
+      // Delete: User must own the file
+      allow delete: if isOwner(userId);
+    }
+    
+    // Profile pictures - users can only access their own profile picture
+    match /profile-pictures/{userId}/{fileName} {
+      // Read: User must own the file
+      allow read: if isOwner(userId);
+      
+      // Write: User must own the file, must be image, max 5MB
+      allow write: if isOwner(userId) && 
+                      request.resource.contentType.matches('image/.*') &&
+                      request.resource.size < 5 * 1024 * 1024;
+      
+      // Delete: User must own the file
+      allow delete: if isOwner(userId);
+    }
+    
+    // Emotion detection snapshots (optional feature)
+    match /emotion-snapshots/{userId}/{snapshotId} {
+      // Read: User must own the file
+      allow read: if isOwner(userId);
+      
+      // Write: User must own the file, must be image, max 2MB
+      allow write: if isOwner(userId) && 
+                      request.resource.contentType.matches('image/.*') &&
+                      request.resource.size < 2 * 1024 * 1024;
+      
+      // Delete: User must own the file
+      allow delete: if isOwner(userId);
+    }
+    
+    // Deny all other access by default
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

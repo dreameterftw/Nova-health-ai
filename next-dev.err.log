@@ -1,0 +1,176 @@
+[browser] Error loading Firestore profile: FirebaseError: Missing or insufficient permissions.
+FirebaseError: Missing or insufficient permissions. (contexts/AuthContext.tsx:138:21)
+[browser] Firestore sync error: FirebaseError: Missing or insufficient permissions.
+FirebaseError: Missing or insufficient permissions. (contexts/ChatContext.tsx:118:23)
+[browser] Error syncing profile: FirebaseError: Missing or insufficient permissions.
+FirebaseError: Missing or insufficient permissions. (contexts/AuthContext.tsx:234:19)
+[browser] Failed to sync consent to Firestore: FirebaseError: Missing or insufficient permissions.
+FirebaseError: Missing or insufficient permissions. (contexts/AuthContext.tsx:267:19)
+[browser] Error syncing profile: FirebaseError: Missing or insufficient permissions.
+FirebaseError: Missing or insufficient permissions. (contexts/AuthContext.tsx:234:19)
+[browser] Failed to sync consent to Firestore: FirebaseError: Missing or insufficient permissions.
+FirebaseError: Missing or insufficient permissions. (contexts/AuthContext.tsx:267:19)
+[browser] Error syncing profile: FirebaseError: Missing or insufficient permissions.
+FirebaseError: Missing or insufficient permissions. (contexts/AuthContext.tsx:234:19)
+[browser] Failed to sync consent to Firestore: FirebaseError: Missing or insufficient permissions.
+FirebaseError: Missing or insufficient permissions. (contexts/AuthContext.tsx:267:19)
+[browser] Failed to sync consent to Firestore: FirebaseError: Missing or insufficient permissions.
+FirebaseError: Missing or insufficient permissions. (contexts/AuthContext.tsx:267:19)
+[browser] Failed to sync consent to Firestore: FirebaseError: Missing or insufficient permissions.
+FirebaseError: Missing or insufficient permissions. (contexts/AuthContext.tsx:267:19)
+[browser] Failed to sync consent to Firestore: FirebaseError: Missing or insufficient permissions.
+FirebaseError: Missing or insufficient permissions. (contexts/AuthContext.tsx:267:19)
+[browser] Failed to sync consent to Firestore: FirebaseError: Missing or insufficient permissions.
+FirebaseError: Missing or insufficient permissions. (contexts/AuthContext.tsx:267:19)
+[browser] Failed to sync consent to Firestore: FirebaseError: Missing or insufficient permissions.
+FirebaseError: Missing or insufficient permissions. (contexts/AuthContext.tsx:267:19)
+[browser] Firestore sync error: FirebaseError: Missing or insufficient permissions.
+FirebaseError: Missing or insufficient permissions. (contexts/ChatContext.tsx:118:23)
+[browser] Firestore sync error: FirebaseError: Missing or insufficient permissions.
+FirebaseError: Missing or insufficient permissions. (contexts/ChatContext.tsx:118:23)
+[browser] Error syncing profile: FirebaseError: Missing or insufficient permissions.
+FirebaseError: Missing or insufficient permissions. (contexts/AuthContext.tsx:234:19)
+Chat API Error: Error: Network error connecting to Ollama at http://localhost:11434: fetch failed
+    at <unknown> (app\api\chat\route.ts:71:13)
+    at async POST (app\api\chat\route.ts:57:22)
+  69 |       })
+  70 |     }).catch((fetchError) => {
+> 71 |       throw new Error(`Network error connecting to Ollama at ${ollamaHost}: ${fetchError.m...
+     |             ^
+  72 |     });
+  73 |
+  74 |     if (!response.ok) {
+[browser] Ollama API error: 500 {"error":"Failed to connect to NOVA Intelligence server.","details":"Network error connecting to Ollama at http://localhost:11434: fetch failed"} 
+    at ChatProvider.useCallback[sendMessage] (contexts/ChatContext.tsx:207:17)
+    at async handleSend (components/dashboard/ChatPanel.tsx:224:5)
+  205 |       if (!response.ok) {
+  206 |         const errorText = await response.text();
+> 207 |         console.error("Ollama API error:", response.status, errorText);
+      |                 ^
+  208 |         throw new Error(`Ollama API error (${response.status}): ${errorText}`);
+  209 |       }
+  210 | (contexts/ChatContext.tsx:207:17)
+[browser] Chat Error Details: Error: Ollama API error (500): {"error":"Failed to connect to NOVA Intelligence server.","details":"Network error connecting to Ollama at http://localhost:11434: fetch failed"}
+    at ChatProvider.useCallback[sendMessage] (contexts/ChatContext.tsx:208:15)
+    at async handleSend (components/dashboard/ChatPanel.tsx:224:5)
+  206 |         const errorText = await response.text();
+  207 |         console.error("Ollama API error:", response.status, errorText);
+> 208 |         throw new Error(`Ollama API error (${response.status}): ${errorText}`);
+      |               ^
+  209 |       }
+  210 |
+  211 |       // Handle streaming response (contexts/ChatContext.tsx:302:15)
+[browser] Chat Error: Error: Ollama API error (500): {"error":"Failed to connect to NOVA Intelligence server.","details":"Network error connecting to Ollama at http://localhost:11434: fetch failed"}
+    at ChatProvider.useCallback[sendMessage] (contexts/ChatContext.tsx:208:15)
+    at async handleSend (components/dashboard/ChatPanel.tsx:224:5)
+  206 |         const errorText = await response.text();
+  207 |         console.error("Ollama API error:", response.status, errorText);
+> 208 |         throw new Error(`Ollama API error (${response.status}): ${errorText}`);
+      |               ^
+  209 |       }
+  210 |
+  211 |       // Handle streaming response (contexts/ChatContext.tsx:304:17)
+[browser] Error loading vault: FirebaseError: Missing or insufficient permissions.
+FirebaseError: Missing or insufficient permissions. (components/dashboard/UploadVault.tsx:74:17)
+[browser] Error loading vault: FirebaseError: Missing or insufficient permissions.
+FirebaseError: Missing or insufficient permissions. (components/dashboard/UploadVault.tsx:74:17)
+⚠ Fast Refresh had to perform a full reload when ./contexts/ChatContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+[browser] Error loading Firestore profile: FirebaseError: Missing or insufficient permissions.
+FirebaseError: Missing or insufficient permissions. (contexts/AuthContext.tsx:138:21)
+[browser] Error syncing profile: FirebaseError: Missing or insufficient permissions.
+FirebaseError: Missing or insufficient permissions. (contexts/AuthContext.tsx:234:19)
+⚠ Fast Refresh had to perform a full reload when ./contexts/ChatContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+[browser] Error loading Firestore profile: FirebaseError: Missing or insufficient permissions.
+FirebaseError: Missing or insufficient permissions. (contexts/AuthContext.tsx:138:21)
+[browser] Error syncing profile: FirebaseError: Missing or insufficient permissions.
+FirebaseError: Missing or insufficient permissions. (contexts/AuthContext.tsx:234:19)
+[browser] ./contexts/AuthContext.tsx:226:24
+Expected ';', '}' or <eof>
+  224 |         name,
+  225 |         email,
+> 226 |         isAuthenticated: true,
+      |                        ^
+  227 |       };
+  228 |       await setDoc(doc(db, "users", firebaseUser.uid), newProfile);
+  229 |
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Server Component:
+    ./contexts/AuthContext.tsx
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./contexts/AuthContext.tsx [Client Component Browser]
+    ./components/auth/AuthPage.tsx [Client Component Browser]
+    ./app/consent/page.tsx [Client Component Browser]
+    ./app/consent/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./contexts/AuthContext.tsx [Client Component SSR]
+    ./components/auth/AuthPage.tsx [Client Component SSR]
+    ./app/consent/page.tsx [Client Component SSR]
+    ./app/consent/page.tsx [Server Component] 
+[browser] ./contexts/AuthContext.tsx:226:24
+Expected ';', '}' or <eof>
+  224 |         name,
+  225 |         email,
+> 226 |         isAuthenticated: true,
+      |                        ^
+  227 |       };
+  228 |       await setDoc(doc(db, "users", firebaseUser.uid), newProfile);
+  229 |
+
+Parsing ecmascript source code failed
+
+Import traces:
+  Server Component:
+    ./contexts/AuthContext.tsx
+    ./app/layout.tsx
+
+  Client Component Browser:
+    ./contexts/AuthContext.tsx [Client Component Browser]
+    ./components/auth/AuthPage.tsx [Client Component Browser]
+    ./app/consent/page.tsx [Client Component Browser]
+    ./app/consent/page.tsx [Server Component]
+
+  Client Component SSR:
+    ./contexts/AuthContext.tsx [Client Component SSR]
+    ./components/auth/AuthPage.tsx [Client Component SSR]
+    ./app/consent/page.tsx [Client Component SSR]
+    ./app/consent/page.tsx [Server Component] 
+⚠ Fast Refresh had to perform a full reload when ./contexts/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload when ./contexts/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Found a change in next.config.mjs. Restarting the server to apply the changes...
+
+thread 'tokio-runtime-worker' (37788) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:224:17:
+Failed to restore task data (corrupted database or bug): Data for batch of 50 tasks
+
+Caused by:
+    0: Looking up typed data for 50 tasks from database failed
+    1: Unable to open static sorted file referenced from 00000453.meta
+    2: Unable to open static sorted file 00000448.sst
+    3: Failed to open SST file C:\Users\ranea\Downloads\NOVA\NOVA\v0\.next\dev\cache/turbopack\0ca967b8\00000448.sst
+    4: The system cannot find the path specified. (os error 3)
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+thread 'tokio-runtime-worker' (37788) panicked at turbopack\crates\turbo-tasks-backend\src\backend\operation\mod.rs:224:17:
+Failed to restore task data (corrupted database or bug): Data for batch of 50 tasks
+
+Caused by:
+    0: Looking up typed data for 50 tasks from database failed
+    1: Unable to open static sorted file referenced from 00000453.meta
+    2: Unable to open static sorted file 00000448.sst
+    3: Failed to open SST file C:\Users\ranea\Downloads\NOVA\NOVA\v0\.next\dev\cache/turbopack\0ca967b8\00000448.sst
+    4: The system cannot find the path specified. (os error 3)
+Persisting failed: Unable to write SST file 00000487.sst
+
+Caused by:
+    The system cannot find the path specified. (os error 3)
+Compaction failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Persisting failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+Compaction failed: Another write batch or compaction is already active (Only a single write operations is allowed at a time)
+⚠ Found a change in next.config.mjs. Restarting the server to apply the changes...
+⚠ Fast Refresh had to perform a full reload when ./lib/firebase.ts changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload
+⚠ Fast Refresh had to perform a full reload when ./contexts/AuthContext.tsx changed. Read more: https://nextjs.org/docs/messages/fast-refresh-reload

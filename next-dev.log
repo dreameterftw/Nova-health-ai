@@ -1,0 +1,105 @@
+
+> nova-health-ai@0.1.0 dev
+> next dev
+
+▲ Next.js 16.2.0 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.7:3000
+- Environments: .env.local
+✓ Ready in 402ms
+
+ GET /consent/ 200 in 378ms (next.js: 123ms, application-code: 256ms)
+ GET /auth/ 200 in 44ms (next.js: 23ms, application-code: 21ms)
+✓ Compiled in 776ms
+✓ Compiled in 86ms
+ GET /consent/ 200 in 207ms (next.js: 55ms, application-code: 151ms)
+ GET /auth/ 200 in 62ms (next.js: 46ms, application-code: 17ms)
+ GET /auth/ 200 in 106ms (next.js: 4ms, application-code: 102ms)
+ GET / 200 in 40ms (next.js: 3ms, application-code: 37ms)
+ GET / 200 in 133ms (next.js: 20ms, application-code: 113ms)
+ GET / 200 in 29ms (next.js: 3ms, application-code: 26ms)
+ GET /manifest.webmanifest 200 in 91ms (next.js: 72ms, application-code: 19ms)
+ GET /auth/ 200 in 17ms (next.js: 4ms, application-code: 13ms)
+ GET /manifest.webmanifest 200 in 8ms (next.js: 3ms, application-code: 6ms)
+ GET /consent/ 200 in 41ms (next.js: 3ms, application-code: 38ms)
+ GET /consent/ 200 in 22ms (next.js: 4ms, application-code: 17ms)
+ GET /manifest.webmanifest 200 in 7ms (next.js: 2ms, application-code: 5ms)
+ GET /manifest.webmanifest 200 in 21ms (next.js: 17ms, application-code: 3ms)
+ GET /consent/ 200 in 43ms (next.js: 3ms, application-code: 39ms)
+ GET /consent/ 200 in 19ms (next.js: 2ms, application-code: 17ms)
+ GET /manifest.webmanifest 200 in 7ms (next.js: 1857µs, application-code: 5ms)
+ GET /dashboard/ 200 in 2.3s (next.js: 2.1s, application-code: 140ms)
+ GET /dashboard/ 200 in 109ms (next.js: 4ms, application-code: 105ms)
+ GET /dashboard/ 200 in 91ms (next.js: 4ms, application-code: 87ms)
+ GET /dashboard/ 200 in 90ms (next.js: 51ms, application-code: 39ms)
+ GET /dashboard/ 200 in 92ms (next.js: 20ms, application-code: 71ms)
+ GET /dashboard/ 200 in 92ms (next.js: 37ms, application-code: 55ms)
+ GET /dashboard/ 200 in 139ms (next.js: 3ms, application-code: 136ms)
+ GET /dashboard/ 200 in 119ms (next.js: 9ms, application-code: 110ms)
+ GET /dashboard/ 200 in 113ms (next.js: 4ms, application-code: 109ms)
+ GET /dashboard/ 200 in 112ms (next.js: 37ms, application-code: 75ms)
+ GET /dashboard/ 200 in 113ms (next.js: 20ms, application-code: 93ms)
+ GET /dashboard/ 200 in 112ms (next.js: 57ms, application-code: 55ms)
+ GET /dashboard/ 200 in 78ms (next.js: 4ms, application-code: 74ms)
+ GET /dashboard/ 200 in 55ms (next.js: 5ms, application-code: 50ms)
+ GET /dashboard/ 200 in 56ms (next.js: 8ms, application-code: 49ms)
+ GET /dashboard/ 200 in 36ms (next.js: 5ms, application-code: 31ms)
+ GET /manifest.webmanifest 200 in 5ms (next.js: 1907µs, application-code: 3ms)
+ POST /api/chat/ 500 in 318ms (next.js: 171ms, application-code: 147ms)
+ GET /dashboard/ 200 in 143ms (next.js: 47ms, application-code: 96ms)
+ GET /dashboard/ 200 in 60ms (next.js: 4ms, application-code: 56ms)
+ GET /dashboard/ 200 in 24ms (next.js: 3ms, application-code: 20ms)
+ GET /manifest.webmanifest 200 in 34ms (next.js: 27ms, application-code: 6ms)
+✓ Compiled in 126ms
+ GET /dashboard/ 200 in 353ms (next.js: 71ms, application-code: 282ms)
+ GET /manifest.webmanifest 200 in 10ms (next.js: 4ms, application-code: 6ms)
+✓ Compiled in 97ms
+✓ Compiled in 99ms
+ GET /dashboard/ 200 in 308ms (next.js: 68ms, application-code: 240ms)
+ GET /manifest.webmanifest 200 in 8ms (next.js: 4ms, application-code: 4ms)
+ POST /api/chat/ 200 in 71ms (next.js: 40ms, application-code: 31ms)
+✓ Compiled in 222ms
+ GET /dashboard/ 200 in 415ms (next.js: 74ms, application-code: 342ms)
+ GET /dashboard/ 200 in 307ms (next.js: 23ms, application-code: 284ms)
+ GET /dashboard/ 200 in 51ms (next.js: 4ms, application-code: 47ms)
+ GET /dashboard/ 200 in 51ms (next.js: 20ms, application-code: 31ms)
+ GET /dashboard/ 200 in 312ms (next.js: 4ms, application-code: 308ms)
+ GET /manifest.webmanifest 200 in 7ms (next.js: 3ms, application-code: 4ms)
+✓ Compiled in 124ms
+ GET /dashboard/ 200 in 412ms (next.js: 78ms, application-code: 334ms)
+ GET /manifest.webmanifest 200 in 12ms (next.js: 5ms, application-code: 7ms)
+ POST /api/chat/ 200 in 24ms (next.js: 18ms, application-code: 6ms)
+ GET /dashboard/ 200 in 48ms (next.js: 3ms, application-code: 45ms)
+ GET /manifest.webmanifest 200 in 8ms (next.js: 3ms, application-code: 6ms)
+ POST /api/chat/ 200 in 9ms (next.js: 2ms, application-code: 7ms)
+▲ Next.js 16.2.0 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.7:3000
+- Environments: .env.local
+✓ Ready in 414ms
+
+ GET /dashboard/ 200 in 1418ms (next.js: 1044ms, application-code: 374ms)
+ GET /manifest.webmanifest 200 in 52ms (next.js: 43ms, application-code: 9ms)
+▲ Next.js 16.2.0 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.7:3000
+- Environments: .env.local
+✓ Ready in 302ms
+
+○ Compiling /dashboard ...
+ GET /dashboard/ 200 in 5.1s (next.js: 4.4s, application-code: 755ms)
+ GET /manifest.webmanifest 200 in 230ms (next.js: 215ms, application-code: 15ms)
+ GET /auth/?mode=login 200 in 825ms (next.js: 645ms, application-code: 180ms)
+ GET /auth/?mode=register 200 in 821ms (next.js: 665ms, application-code: 157ms)
+ GET /auth/?mode=register 200 in 36ms (next.js: 2ms, application-code: 33ms)
+ GET /auth/?mode=register 200 in 68ms (next.js: 7ms, application-code: 61ms)
+ GET /auth/?mode=login 200 in 30ms (next.js: 4ms, application-code: 26ms)
+ GET / 200 in 593ms (next.js: 574ms, application-code: 20ms)
+ GET /auth/?mode=register 200 in 23ms (next.js: 4ms, application-code: 19ms)
+  Reload env: .env.local
+✓ Compiled in 40ms
+ GET /auth/?mode=register 200 in 172ms (next.js: 38ms, application-code: 135ms)
+ GET /auth/?mode=register 200 in 113ms (next.js: 2ms, application-code: 110ms)
+✓ Compiled in 117ms
+ GET /auth/?mode=register 200 in 245ms (next.js: 66ms, application-code: 179ms)
+ GET /auth/?mode=register 200 in 39ms (next.js: 2ms, application-code: 36ms)
