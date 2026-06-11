@@ -2,9 +2,11 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Trash2, ThumbsUp, ThumbsDown, X, Phone, Sparkles } from "lucide-react";
+import { Send, Trash2, ThumbsUp, ThumbsDown, X, Phone, Sparkles, Volume2, VolumeX, Languages } from "lucide-react";
 import { useChat, type Message } from "@/contexts/ChatContext";
 import { useEmotion } from "@/contexts/EmotionContext";
+import { useNovaTts } from "@/hooks/useNovaTts";
+import { CHAT_LANGUAGES } from "@/lib/chatLanguages";
 import ReactMarkdown from "react-markdown";
 
 const C = {
@@ -29,15 +31,26 @@ const C = {
 import { LOGO_URL } from "@/lib/constants";
 
 const SUGGESTIONS = [
-  { text: "I feel stressed today",     icon: "🌊" },
-  { text: "Help me breathe",           icon: "💨" },
-  { text: "Pain management tips",      icon: "🩹" },
-  { text: "Improve my sleep",          icon: "🌙" },
-  { text: "Track my mood",             icon: "📊" },
+  { text: "I've had a long day",       icon: "🌊" },
+  { text: "Something's been on my mind", icon: "💭" },
+  { text: "I'm not sure how I feel",   icon: "🌿" },
+  { text: "I just need someone to listen", icon: "💛" },
 ];
 
 // ─── Message bubble ────────────────────────────────────────────────────────────
-function MessageBubble({ msg, onFeedback }: { msg: Message; onFeedback?: (id: string, v: 1 | -1) => void }) {
+function MessageBubble({
+  msg,
+  onFeedback,
+  onSpeak,
+  isSpeaking,
+  showSpeak,
+}: {
+  msg: Message;
+  onFeedback?: (id: string, v: 1 | -1) => void;
+  onSpeak?: (id: string, content: string) => void;
+  isSpeaking?: boolean;
+  showSpeak?: boolean;
+}) {
   const isNova = msg.role === "assistant";
   const isCrisis = msg.content.includes("988") || msg.content.includes("crisis") || msg.content.includes("emergency");
 
@@ -97,6 +110,15 @@ function MessageBubble({ msg, onFeedback }: { msg: Message; onFeedback?: (id: st
           </p>
           {isNova && onFeedback && (
             <div className="flex items-center gap-1">
+              {showSpeak && onSpeak && msg.content.trim() && (
+                <motion.button
+                  whileTap={{ scale: 0.85 }}
+                  onClick={() => onSpeak(msg.id, msg.content)}
+                  title={isSpeaking ? "Stop speaking" : "Listen"}
+                  className={`p-0.5 rounded transition-colors ${isSpeaking ? "text-indigo-600" : "text-slate-300 hover:text-indigo-600"}`}>
+                  <Volume2 size={10} />
+                </motion.button>
+              )}
               <motion.button whileTap={{ scale: 0.85 }} onClick={() => onFeedback(msg.id, 1)}
                 className={`p-0.5 rounded transition-colors ${msg.feedback === 1 ? "text-green-700" : "text-slate-300 hover:text-green-700"}`}>
                 <ThumbsUp size={10} />
@@ -207,15 +229,41 @@ function EmptyState({ onSuggest }: { onSuggest: (text: string) => void }) {
 
 // ─── Main ChatPanel ────────────────────────────────────────────────────────────
 export function ChatPanel() {
-  const { messages, isTyping, sendMessage, clearChat, crisisAlert, dismissCrisis, submitFeedback } = useChat();
+  const { messages, isTyping, sendMessage, clearChat, crisisAlert, dismissCrisis, submitFeedback, chatLanguage, setChatLanguage } = useChat();
   const { emotion } = useEmotion();
+  const { supported: ttsSupported, ttsEnabled, setTtsEnabled, speakingId, speakMessage, stopSpeaking } = useNovaTts(chatLanguage);
   const [input, setInput] = useState("");
   const [inputFocused, setInputFocused] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const prevTypingRef = useRef(false);
+  const lastAutoSpokenRef = useRef<string | null>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isTyping]);
+
+  // Auto-read NOVA replies when TTS is enabled
+  useEffect(() => {
+    if (prevTypingRef.current && !isTyping && ttsEnabled && ttsSupported) {
+      const last = messages[messages.length - 1];
+      if (
+        last?.role === "assistant"
+        && last.content.trim()
+        && last.id !== lastAutoSpokenRef.current
+      ) {
+        lastAutoSpokenRef.current = last.id;
+        speakMessage(last.id, last.content);
+      }
+    }
+    prevTypingRef.current = isTyping;
+  }, [isTyping, messages, ttsEnabled, ttsSupported, speakMessage]);
+
+  const handleClear = () => {
+    stopSpeaking();
+    lastAutoSpokenRef.current = null;
+    clearChat();
+  };
 
   const handleSend = async () => {
     const text = input.trim();
@@ -252,13 +300,74 @@ export function ChatPanel() {
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {/* Language selector */}
+          <div className="relative">
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setLangOpen((o) => !o)}
+              className="h-8 px-2.5 rounded-xl flex items-center gap-1.5 text-[10px] font-bold transition-all"
+              style={{ color: C.textMid, border: `1px solid ${C.border}`, background: langOpen ? "#EEF2FF" : C.surface }}
+              title="Chat language">
+              <Languages size={12} />
+              {CHAT_LANGUAGES.find((l) => l.code === chatLanguage)?.nativeLabel.slice(0, 6) || "Auto"}
+            </motion.button>
+            <AnimatePresence>
+              {langOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setLangOpen(false)} />
+                  <motion.div
+                    initial={{ opacity: 0, y: 6, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 4, scale: 0.96 }}
+                    className="absolute right-0 top-full mt-1.5 z-50 rounded-2xl py-1.5 shadow-xl overflow-hidden min-w-[148px]"
+                    style={{ background: C.surface, border: `1px solid ${C.border}` }}>
+                    {CHAT_LANGUAGES.map((lang) => (
+                      <button
+                        key={lang.code}
+                        onClick={() => { setChatLanguage(lang.code); setLangOpen(false); }}
+                        className="w-full px-3 py-2 text-left text-[11px] font-semibold flex items-center justify-between gap-2 hover:bg-indigo-50 transition-colors"
+                        style={{
+                          color: chatLanguage === lang.code ? C.indigoDark : C.textMid,
+                          background: chatLanguage === lang.code ? "#EEF2FF" : "transparent",
+                        }}>
+                        <span>{lang.nativeLabel}</span>
+                        {lang.code !== "auto" && (
+                          <span className="text-[9px]" style={{ color: C.textSoft }}>{lang.label}</span>
+                        )}
+                      </button>
+                    ))}
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          </div>
+
+          {/* TTS toggle */}
+          {ttsSupported && (
+            <motion.button
+              whileTap={{ scale: 0.9 }}
+              onClick={() => {
+                if (ttsEnabled) stopSpeaking();
+                setTtsEnabled(!ttsEnabled);
+              }}
+              className="w-8 h-8 rounded-xl flex items-center justify-center transition-all"
+              style={{
+                color: ttsEnabled ? C.indigoDark : C.textSoft,
+                border: `1px solid ${ttsEnabled ? "#C7D2FE" : C.border}`,
+                background: ttsEnabled ? "#EEF2FF" : C.surface,
+              }}
+              title={ttsEnabled ? "Auto-read ON — tap to mute" : "Enable text-to-speech"}>
+              {ttsEnabled ? <Volume2 size={13} /> : <VolumeX size={13} />}
+            </motion.button>
+          )}
+
           {emotion && (
             <span className="text-[10px] font-black px-2.5 py-1.5 rounded-full"
               style={{ background: "#FDE68A", color: "#B45309", border: "1px solid #D97706" }}>
               {emotion.dominant}
             </span>
           )}
-          <motion.button whileTap={{ scale: 0.9 }} onClick={clearChat}
+          <motion.button whileTap={{ scale: 0.9 }} onClick={handleClear}
             className="w-8 h-8 rounded-xl flex items-center justify-center transition-all hover:bg-red-500/10"
             style={{ color: C.textSoft, border: `1px solid ${C.border}` }}>
             <Trash2 size={13} />
@@ -278,7 +387,14 @@ export function ChatPanel() {
         ) : (
           <div className="space-y-4 pr-1">
             {messages.map((msg) => (
-              <MessageBubble key={msg.id} msg={msg} onFeedback={submitFeedback} />
+              <MessageBubble
+                key={msg.id}
+                msg={msg}
+                onFeedback={submitFeedback}
+                onSpeak={speakMessage}
+                isSpeaking={speakingId === msg.id}
+                showSpeak={ttsSupported && msg.role === "assistant"}
+              />
             ))}
             <AnimatePresence>{isTyping && <TypingIndicator />}</AnimatePresence>
             <div ref={messagesEndRef} />

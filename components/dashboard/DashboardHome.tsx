@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEmotion } from "@/contexts/EmotionContext";
 import { LOGO_URL } from "@/lib/constants";
+import { saveMoodLog, saveMoodLogLocal, fetchMoodLogs } from "@/lib/activityStore";
+import type { MoodLog } from "@/lib/userContext";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine,
@@ -79,8 +81,18 @@ function QuickCard({ id, label, sub, color, accent, Icon, onClick }: {
   );
 }
 
-// ── 7-day mood seed data — prior 6 days (null = not logged) ─────────────────
-const SEED_DAYS: { day: string; score: number | null }[] = [];
+function buildChartDays(moodLogs: MoodLog[]): { day: string; score: number | null }[] {
+  const days: { day: string; score: number | null }[] = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().slice(0, 10);
+    const label = d.toLocaleDateString("en-US", { weekday: "short" });
+    const log = moodLogs.find((m) => m.date === dateStr);
+    days.push({ day: label, score: log?.score ?? null });
+  }
+  return days;
+}
 
 function getTodayLabel() {
   return new Date().toLocaleDateString("en-US", { weekday: "short" });
@@ -105,12 +117,19 @@ function MoodTrendTooltip({ active, payload, label }: { active?: boolean; payloa
   );
 }
 
-function MoodTrendGraph({ checkedIn, todayScore }: { checkedIn: boolean; todayScore: number | null }) {
+function MoodTrendGraph({ moodLogs, checkedIn, todayScore }: { moodLogs: MoodLog[]; checkedIn: boolean; todayScore: number | null }) {
   const todayLabel = getTodayLabel();
-  const chartData = [
-    ...SEED_DAYS,
-    { day: todayLabel, score: checkedIn && todayScore !== null ? todayScore : null },
-  ];
+  const today = new Date().toISOString().slice(0, 10);
+  const chartData = buildChartDays(moodLogs).map((d, i) => {
+    const isToday = i === 6;
+    if (isToday && checkedIn && todayScore !== null) {
+      return { day: todayLabel, score: todayScore };
+    }
+    if (isToday && !moodLogs.find((m) => m.date === today)) {
+      return { day: todayLabel, score: null };
+    }
+    return d;
+  });
 
   const hasAnyData = chartData.some(d => d.score !== null);
 
@@ -273,7 +292,7 @@ function MoodTrendGraph({ checkedIn, todayScore }: { checkedIn: boolean; todaySc
   );
 }
 
-type ActiveTab = "home" | "chat" | "emotion" | "vault" | "recovery" | "profile" | "resources";
+type ActiveTab = "home" | "chat" | "emotion" | "vault" | "recovery" | "journal" | "profile" | "resources";
 
 export function DashboardHome({
   onNavigate,
@@ -286,6 +305,7 @@ export function DashboardHome({
   const { emotion } = useEmotion();
   const [selectedMood, setSelectedMood] = useState<number | null>(null);
   const [checkedIn, setCheckedIn] = useState(false);
+  const [moodLogs, setMoodLogs] = useState<MoodLog[]>([]);
   const [greeting, setGreeting] = useState(() => {
     const h = new Date().getHours();
     return h < 5 ? "Good night" : h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : "Good evening";
@@ -309,6 +329,37 @@ export function DashboardHome({
     const t = setInterval(() => setTipIndex(i => (i + 1) % TIPS.length), 12000);
     return () => clearInterval(t);
   }, []);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    fetchMoodLogs(user.id, 14).then((logs) => {
+      setMoodLogs(logs);
+      const today = new Date().toISOString().slice(0, 10);
+      const todayLog = logs.find((m) => m.date === today);
+      if (todayLog) {
+        setSelectedMood(todayLog.score);
+        setCheckedIn(true);
+      }
+    });
+  }, [user?.id]);
+
+  const handleMoodCheckIn = async () => {
+    if (selectedMood === null || !user?.id) {
+      setCheckedIn(true);
+      return;
+    }
+    const moodData = MOODS[selectedMood - 1];
+    const today = new Date().toISOString().slice(0, 10);
+    const log: MoodLog = { score: selectedMood, label: moodData.label, date: today };
+    setCheckedIn(true);
+    setMoodLogs((prev) => [log, ...prev.filter((m) => m.date !== today)]);
+    saveMoodLogLocal(user.id, log);
+    try {
+      await saveMoodLog(user.id, log);
+    } catch {
+      // local backup already saved
+    }
+  };
 
   if (!isMounted) return null;
 
@@ -492,7 +543,7 @@ export function DashboardHome({
                   <motion.button
                     initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 4 }}
                     whileTap={{ scale: 0.97 }}
-                    onClick={() => setCheckedIn(true)}
+                    onClick={handleMoodCheckIn}
                     className="w-full mt-3 py-3 rounded-2xl text-sm font-black text-white btn-primary press-feedback">
                     Log {moodData?.emoji} {moodData?.label} — {selectedMood}/10
                   </motion.button>
@@ -504,7 +555,7 @@ export function DashboardHome({
       </motion.div>
 
       {/* ── 7-Day Mood Trend ─────────────────────────────────────────────── */}
-      <MoodTrendGraph checkedIn={checkedIn} todayScore={selectedMood} />
+      <MoodTrendGraph moodLogs={moodLogs} checkedIn={checkedIn} todayScore={selectedMood} />
 
       {/* ── Quick actions grid ───────────────────────────────────────────── */}
       <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}>
@@ -513,6 +564,7 @@ export function DashboardHome({
           <QuickCard id="chat" label="Talk to NOVA" sub="Wellness conversation" color={C.indigo} accent="#EEF2FF" Icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" stroke={C.indigo} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>} onClick={() => onNavigate("chat")} />
           <QuickCard id="emotion" label="Emotion Scan" sub="Analyse facial state" color={C.gold} accent="#FFFBEB" Icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke={C.gold} strokeWidth="1.7" strokeLinecap="round" /><circle cx="12" cy="12" r="3" stroke={C.gold} strokeWidth="1.7" /></svg>} onClick={() => onNavigate("emotion")} />
           <QuickCard id="vault" label="Upload Report" sub="Parse medical docs" color={C.gold} accent="#FFFBEB" Icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" stroke={C.gold} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>} onClick={() => onNavigate("vault")} />
+          <QuickCard id="journal" label="Health Journal" sub="Mental & physical reflections" color={C.teal} accent="#F0FDFA" Icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke={C.teal} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" stroke={C.teal} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>} onClick={() => onNavigate("journal")} />
           <QuickCard id="resources" label="Health Resources" sub="Verified Indian health resources" color={C.indigo} accent="#EEF2FF" Icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M4 19.5A2.5 2.5 0 016.5 17H20" stroke={C.indigo} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" stroke={C.indigo} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>} onClick={() => onNavigate("resources")} />
         </div>
       </motion.div>

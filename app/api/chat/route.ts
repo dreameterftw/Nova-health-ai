@@ -1,4 +1,7 @@
-import { NextResponse } from "next/server";
+
+import { buildNovaSystemPrompt } from "@/lib/novaPrompt";
+import type { UserActivityContext } from "@/lib/userContext";
+import type { ChatLanguageCode } from "@/lib/chatLanguages";
 
 type ChatMessage = {
   role: "system" | "user" | "assistant";
@@ -14,11 +17,6 @@ type EmotionContext = {
   isCritical?: boolean;
 };
 
-function formatPercent(value: unknown): string {
-  if (typeof value !== "number" || Number.isNaN(value)) return "0%";
-  return `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%`;
-}
-
 function fallbackResponse(messages: unknown, userProfile: { name?: string } | undefined): string {
   const lastUserMessage = Array.isArray(messages)
     ? [...messages].reverse().find((message) => message?.role === "user")?.content
@@ -30,13 +28,13 @@ function fallbackResponse(messages: unknown, userProfile: { name?: string } | un
   return [
     `I am here, ${userProfile?.name || "there"}. ${topic}`,
     "",
-    "My local intelligence service is not connected right now, so I cannot give a full AI response yet. You can still use NOVA safely: write down symptoms, track mood, upload documents, and use SOS immediately for urgent symptoms such as chest pain, severe breathlessness, stroke signs, major bleeding, poisoning, or self-harm risk.",
+    "My intelligence service is currently not connected or has run into an issue, so I cannot give a full AI response right now. You can still use NOVA safely: write down symptoms, track mood, upload documents, and use SOS immediately for urgent symptoms such as chest pain, severe breathlessness, stroke signs, major bleeding, poisoning, or self-harm risk.",
     "",
-    "Once the NOVA Intelligence server is running, I will answer normally with personalized, context-aware support."
+    "Please check the Groq / OpenRouter API key configuration or try again in a moment."
   ].join("\n");
 }
 
-function streamTextAsOllamaChunks(text: string): Response {
+function streamTextAsNdjsonChunks(text: string): Response {
   const encoder = new TextEncoder();
   const chunks = text.match(/.{1,80}(\s|$)/g) || [text];
 
@@ -59,35 +57,120 @@ function streamTextAsOllamaChunks(text: string): Response {
   });
 }
 
+function transformOpenAIStream(rawStream: ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
+  const reader = rawStream.getReader();
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  let buffer = "";
+
+  return new ReadableStream({
+    async start(controller) {
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+            controller.enqueue(encoder.encode(JSON.stringify({ done: true }) + "\n"));
+            controller.close();
+            break;
+          }
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed) continue;
+            if (trimmed === "data: [DONE]") continue;
+
+            if (trimmed.startsWith("data: ")) {
+              const jsonStr = trimmed.slice(6);
+              try {
+                const parsed = JSON.parse(jsonStr);
+                const content = parsed.choices?.[0]?.delta?.content;
+                if (content) {
+                  const streamChunk = JSON.stringify({ message: { content } }) + "\n";
+                  controller.enqueue(encoder.encode(streamChunk));
+                }
+              } catch (e) {
+                // Ignore parsing errors for partial or invalid lines
+              }
+            }
+          }
+        }
+      } catch (err) {
+        controller.error(err);
+      }
+    }
+  });
+}
+
+/**
+ * Resolves which Cloud LLM provider to use.
+ * Priority: GROQ_API_KEY → OPENROUTER_API_KEY
+ */
+function resolveProvider(): { apiKey: string; model: string; endpoint: string; headers: Record<string, string> } | null {
+  const groqKey = process.env.GROQ_API_KEY;
+  if (groqKey) {
+    return {
+      apiKey: groqKey,
+      model: process.env.GROQ_MODEL || "llama-3.3-70b-versatile",
+      endpoint: "https://api.groq.com/openai/v1/chat/completions",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${groqKey}`,
+      }
+    };
+  }
+
+  const openRouterKey = process.env.OPENROUTER_API_KEY;
+  if (openRouterKey) {
+    return {
+      apiKey: openRouterKey,
+      model: process.env.OPENROUTER_MODEL || "meta-llama/llama-3.1-8b-instruct",
+      endpoint: "https://openrouter.ai/api/v1/chat/completions",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${openRouterKey}`,
+        "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
+        "X-Title": "NOVA Health"
+      }
+    };
+  }
+
+  return null;
+}
+
 export async function POST(req: Request) {
-  let payload: { messages?: unknown; userProfile?: { name?: string }; currentEmotion?: EmotionContext } = {};
+  let payload: {
+    messages?: unknown;
+    userProfile?: { name?: string };
+    currentEmotion?: EmotionContext;
+    userContext?: UserActivityContext;
+    exchangeCount?: number;
+    language?: ChatLanguageCode;
+  } = {};
 
   try {
     payload = await req.json();
-    const { messages, userProfile, currentEmotion } = payload;
-    const ollamaHost = process.env.OLLAMA_HOST || "http://localhost:11434";
-    const ollamaModel = process.env.OLLAMA_MODEL || "nova-health";
+    const { messages, userProfile, currentEmotion, userContext, exchangeCount, language } = payload;
+    const provider = resolveProvider();
     const emotion = (currentEmotion || {}) as EmotionContext;
 
-    // System prompt to define the NOVA persona
-    const systemPrompt = `You are NOVA (Next-Gen Omniscient Virtual Assistant), a private and compassionate AI health companion. 
-Your tone is professional yet empathetic. You are specifically designed for the Indian context (Yoga, Ayurveda, Indian medical standards).
-User Name: ${userProfile?.name || "User"}
+    if (!provider) {
+      return streamTextAsNdjsonChunks(fallbackResponse(messages, userProfile));
+    }
 
-Current Emotional State:
-- Dominant: ${emotion.dominant || "calm"}
-- Stress Level: ${formatPercent(emotion.stress)}
-- Sadness Level: ${formatPercent(emotion.sadness)}
-- Joy Level: ${formatPercent(emotion.joy)}
-- Fatigue Level: ${formatPercent(emotion.fatigue)}
-- Critical Alert: ${emotion.isCritical ? "YES" : "No"}
+    const systemPrompt = buildNovaSystemPrompt(
+      userProfile?.name,
+      emotion,
+      userContext,
+      typeof exchangeCount === "number" ? exchangeCount : 0,
+      language || "auto"
+    );
 
-IMPORTANT: You are an AI, not a doctor. Always include a disclaimer for critical medical advice. 
-If the user mentions self-harm, suicide, chest pain, stroke symptoms, severe breathlessness, loss of consciousness, poisoning, pregnancy emergencies, or major bleeding, respond with deep empathy and strictly urge them to use the SOS feature and contact local emergency services immediately.
-Keep answers concise, practical, and culturally aware. Do not diagnose. Explain uncertainty clearly.`;
-
-    // Map messages for Ollama format
-    const ollamaMessages = [
+    // Map messages for the OpenAI-compatible chat format
+    const chatMessages = [
       { role: "system", content: systemPrompt },
       ...(Array.isArray(messages) ? messages : [])
         .filter((m: ChatMessage) => m?.role === "user" || m?.role === "assistant")
@@ -97,36 +180,36 @@ Keep answers concise, practical, and culturally aware. Do not diagnose. Explain 
         }))
     ];
 
-    const response = await fetch(`${ollamaHost}/api/chat`, {
+    const response = await fetch(provider.endpoint, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: provider.headers,
       body: JSON.stringify({
-        model: ollamaModel,
-        messages: ollamaMessages,
+        model: provider.model,
+        messages: chatMessages,
         stream: true,
-        options: {
-          temperature: 0.6,
-          top_p: 0.85,
-          num_predict: 512
-        }
+        temperature: 0.7,
+        top_p: 0.88,
+        max_tokens: 768
       })
     }).catch(() => {
       return null;
     });
 
     if (!response) {
-      return streamTextAsOllamaChunks(fallbackResponse(messages, userProfile));
+      return streamTextAsNdjsonChunks(fallbackResponse(messages, userProfile));
     }
 
     if (!response.ok) {
-      return streamTextAsOllamaChunks(fallbackResponse(messages, userProfile));
+      return streamTextAsNdjsonChunks(fallbackResponse(messages, userProfile));
     }
 
     if (!response.body) {
-      throw new Error("Ollama returned an empty streaming response.");
+      throw new Error("Cloud LLM returned an empty streaming response.");
     }
 
-    return new Response(response.body, {
+    const transformedStream = transformOpenAIStream(response.body);
+
+    return new Response(transformedStream, {
       headers: {
         "Content-Type": "application/x-ndjson; charset=utf-8",
         "Cache-Control": "no-cache, no-transform",
@@ -135,6 +218,6 @@ Keep answers concise, practical, and culturally aware. Do not diagnose. Explain 
     });
 
   } catch {
-    return streamTextAsOllamaChunks(fallbackResponse(payload.messages, payload.userProfile));
+    return streamTextAsNdjsonChunks(fallbackResponse(payload.messages, payload.userProfile));
   }
 }

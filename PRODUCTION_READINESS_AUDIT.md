@@ -42,7 +42,7 @@ if (process.env.NODE_ENV === 'development') {
 **Verified**:
 - ✅ No hardcoded API keys in code
 - ✅ All Firebase config uses `process.env.NEXT_PUBLIC_*`
-- ✅ Ollama host URL uses environment variable
+- ✅ Groq and OpenRouter API keys use environment variables
 - ✅ Logo URL uses environment variable
 
 ### 4. **TypeScript Configuration** ✅ VERIFIED
@@ -229,7 +229,9 @@ FIREBASE_DATABASE_URL=
 FIREBASE_STORAGE_BUCKET=
 
 # AI Configuration
-NEXT_PUBLIC_OLLAMA_HOST=
+GROQ_API_KEY=
+GROQ_MODEL=
+OPENROUTER_API_KEY=
 
 # App Configuration
 NEXT_PUBLIC_LOGO_URL=/logo.png
@@ -276,7 +278,7 @@ vercel --prod
 ## 🐛 Known Issues & Limitations
 
 ### Current Limitations
-1. **Ollama Dependency**: Requires Ollama server running (local or tunnel)
+1. **AI Key Configuration**: Requires Groq or OpenRouter API keys set up in environment
 2. **Emotion Detection**: Requires camera permissions
 3. **Offline Mode**: Limited functionality without internet
 4. **Browser Support**: Modern browsers only (ES2020+)
@@ -410,7 +412,7 @@ module.exports = {
 - [ ] User feedback system
 
 ### Nice to Have
-- [ ] PWA support
+- [x] PWA support
 - [ ] Push notifications
 - [ ] Multi-language support
 - [ ] Advanced analytics

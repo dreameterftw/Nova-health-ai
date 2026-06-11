@@ -12,7 +12,7 @@
 ## 🌟 Features
 
 ### 🧠 **NOVA - AI Companion**
-- Private, empathetic chat powered by Ollama (Llama 3.2)
+- Private, empathetic chat powered by Groq Cloud API (Llama 3)
 - Reads your medical reports and tracks medications
 - Adjusts tone based on your emotional state
 - Available 24/7 for wellness support
@@ -48,7 +48,7 @@
 ### Prerequisites
 - Node.js 18+ installed
 - Firebase project set up
-- Ollama running (local or tunnel)
+- Groq API key (get one free at [console.groq.com](https://console.groq.com))
 
 ### Installation
 
@@ -132,8 +132,13 @@ NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
 # Firebase Admin / Server-only
 FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account", ... }
 
-# Ollama (Required)
-OLLAMA_HOST=http://localhost:11434
+# AI Configuration (Groq — primary)
+GROQ_API_KEY=your_groq_api_key
+GROQ_MODEL=llama-3.3-70b-versatile
+
+# AI Configuration (OpenRouter — fallback)
+OPENROUTER_API_KEY=your_openrouter_api_key
+OPENROUTER_MODEL=meta-llama/llama-3.1-8b-instruct:free
 
 # App Config
 NEXT_PUBLIC_SITE_URL=https://your-domain.com
@@ -150,20 +155,16 @@ NEXT_PUBLIC_LOGO_URL=/logo.png
 4. Deploy security rules from `firestore.rules`
 5. Copy your config to `.env.local`
 
-### Ollama Setup
+### Groq API Setup
 
-```bash
-# Install Ollama
-curl https://ollama.ai/install.sh | sh
-
-# Pull Llama 3.2 model
-ollama pull llama3.2
-
-# Run Ollama server
-ollama serve
+1. Go to [console.groq.com](https://console.groq.com)
+2. Create a free account and generate an API key
+3. Add the key to your `.env.local`:
+```env
+GROQ_API_KEY=gsk_your_key_here
 ```
 
-For remote access, use [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-apps/).
+> If you prefer OpenRouter instead, set `OPENROUTER_API_KEY` — the app will use whichever key is available (Groq takes priority).
 
 ---
 
@@ -196,6 +197,12 @@ npm run lint
 
 ## 🚀 Deployment
 
+### ✨ Live Deployment
+
+**Production Live**: https://nova-health-ai-five.vercel.app
+
+The app is deployed and ready to use!
+
 ### Deploy to Vercel (Recommended)
 
 ```bash
@@ -219,7 +226,7 @@ Or connect your Git repository to Vercel for automatic deployments.
 
 1. Test authentication flow
 2. Verify Firebase connection
-3. Check Ollama endpoint
+3. Verify Groq / OpenRouter API key is set in Vercel environment variables
 4. Test on mobile devices
 5. Monitor error rates
 
@@ -277,10 +284,10 @@ npm run build
 - Verify Firebase project is active
 - Check security rules
 
-**Ollama not connecting**:
-- Verify Ollama is running: `ollama list`
-- Check `OLLAMA_HOST` URL
-- Test endpoint: `curl $OLLAMA_HOST/api/tags`
+**AI chat not responding**:
+- Verify `GROQ_API_KEY` or `OPENROUTER_API_KEY` is set in your environment
+- Check API key validity at the provider's dashboard
+- Review Vercel deployment logs for 4xx/5xx errors from the LLM endpoint
 
 **Authentication not working**:
 - Enable Email/Password in Firebase Console
@@ -317,7 +324,7 @@ This project is proprietary and confidential.
 
 - [Next.js](https://nextjs.org/) - React framework
 - [Firebase](https://firebase.google.com/) - Backend services
-- [Ollama](https://ollama.ai/) - Local AI inference
+- [Groq](https://groq.com/) - Cloud AI inference
 - [face-api.js](https://github.com/justadudewhohacks/face-api.js/) - Emotion detection
 - [Tailwind CSS](https://tailwindcss.com/) - Styling
 - [Framer Motion](https://www.framer.com/motion/) - Animations

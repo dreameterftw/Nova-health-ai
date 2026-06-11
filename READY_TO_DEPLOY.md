@@ -8,11 +8,10 @@ The NOVA V0 application is **production-ready** and **fully configured** for dep
 
 ## ðŸŽ‰ What's Been Completed
 
-### 1. âœ… Ollama Configuration Updated
-- **Old URL**: `https://requirement-advice-guards-arab.trycloudflare.com`
-- **New URL**: `https://bowling-cradle-bearing-cpu.trycloudflare.com`
-- **Source**: Google Colab with Cloudflare tunnel
-- **Status**: Configured in `.env.local`
+### 1. ✅ AI Provider Swapped to Groq / OpenRouter
+- **Primary Provider**: Groq Cloud API (`llama-3.3-70b-versatile` model)
+- **Fallback Provider**: OpenRouter API (`llama-3.1-8b-instruct:free` model)
+- **Status**: Configured in `.env.local` and `app/api/chat/route.ts`
 
 ### 2. âœ… PWA Install Button Added
 - **Hook**: `hooks/usePWAInstall.ts` - Manages installation logic
@@ -92,8 +91,10 @@ FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account", ... }
 FIREBASE_DATABASE_URL=https://your_project.firebasedatabase.app
 FIREBASE_STORAGE_BUCKET=your_project.firebasestorage.app
 
-# Ollama (Server-only)
-OLLAMA_HOST=https://your-ollama-tunnel-url.trycloudflare.com
+# AI Configuration (Groq / OpenRouter)
+GROQ_API_KEY=your_groq_api_key
+GROQ_MODEL=llama-3.3-70b-versatile
+OPENROUTER_API_KEY=your_openrouter_api_key
 
 # App Config
 NEXT_PUBLIC_LOGO_URL=/logo.png
@@ -148,7 +149,7 @@ After deployment, verify these features:
 - 3-step consent flow (GDPR compliant)
 
 ### 2. AI Chat (NOVA)
-- Powered by Ollama (Google Colab)
+- Powered by Groq Cloud API (with OpenRouter fallback)
 - Emotion-aware conversations
 - Context retention
 - Crisis detection
@@ -196,7 +197,7 @@ After deployment, verify these features:
 - **Styling**: Tailwind CSS 4.2.0
 - **Authentication**: Firebase Auth
 - **Database**: Firestore
-- **AI**: Ollama (Google Colab)
+- **AI**: Groq API / OpenRouter (Llama 3)
 - **Emotion**: face-api.js (client-side)
 - **Deployment**: Vercel
 - **PWA**: Custom install button + manifest
@@ -221,13 +222,12 @@ After deployment, verify these features:
 ## ðŸ› Known Issues & Limitations
 
 ### Current Limitations
-1. **Ollama Dependency**: Requires Google Colab tunnel to be active
-2. **Tunnel Stability**: Cloudflare tunnel URL may change
-3. **Emotion Detection**: Requires camera permissions
-4. **Browser Support**: Modern browsers only (ES2020+)
+1. **API Key Config**: Requires active Groq / OpenRouter API keys
+2. **Emotion Detection**: Requires camera permissions
+3. **Browser Support**: Modern browsers only (ES2020+)
 
 ### Solutions
-1. **Ollama**: Keep Google Colab notebook running, update URL if tunnel changes
+1. **API Keys**: Ensure environment variables are correctly configured in production
 2. **Camera**: App gracefully handles denied permissions
 3. **Browsers**: Show compatibility message for old browsers
 
@@ -236,24 +236,24 @@ After deployment, verify these features:
 ## ðŸ”„ Maintenance
 
 ### Regular Tasks
-1. **Monitor Ollama Tunnel**: Check if Google Colab is running
-2. **Update Tunnel URL**: If Cloudflare tunnel changes, update env var
+1. **Monitor API Usage**: Check Groq / OpenRouter console for usage & limits
+2. **Update API Keys**: If keys expire or change, update env vars
 3. **Check Firebase Usage**: Monitor Firestore reads/writes
 4. **Review Error Logs**: Check Vercel logs for issues
 5. **Update Dependencies**: Keep packages up to date
 
-### Updating Ollama URL
-If the Cloudflare tunnel URL changes:
+### Updating AI Keys
+If your Groq or OpenRouter API keys change:
 
 1. Update `.env.local`:
    ```env
-   OLLAMA_HOST=https://new-tunnel-url.trycloudflare.com
+   GROQ_API_KEY=your_new_groq_api_key
    ```
 
 2. Update Vercel environment variable:
-   - Go to Vercel Dashboard â†’ Settings â†’ Environment Variables
-   - Update `OLLAMA_HOST`
-   - Redeploy
+   - Go to Vercel Dashboard → Settings → Environment Variables
+   - Update `GROQ_API_KEY` or `OPENROUTER_API_KEY`
+   - Redeploy/promote the deployment
 
 ---
 
@@ -293,10 +293,8 @@ cd v0 && vercel --prod
    - Ensure all variables are set in Vercel
    - Check for typos in variable names
 
-3. **Test Ollama Endpoint**
-   ```bash
-   curl https://bowling-cradle-bearing-cpu.trycloudflare.com/api/tags
-   ```
+3. **Test AI API Endpoints**
+   Ensure that the Groq / OpenRouter API endpoints are reachable and the API keys are active.
 
 4. **Check Firebase Console**
    - Verify project is active
@@ -338,7 +336,7 @@ Everything is configured and ready to go. Just run the deploy command and your a
 **Status**: âœ… READY TO DEPLOY  
 **Build**: âœ… SUCCESSFUL  
 **PWA**: âœ… ENABLED  
-**Ollama**: âœ… CONFIGURED  
+**AI**: ✅ GROQ / OPENROUTER CONFIGURED  
 **Documentation**: âœ… COMPLETE
 
 **LET'S GO! ðŸŽŠ**

@@ -25,7 +25,7 @@
 
 ## 4. Deployment
 - **Action**: Completed a production build (`npm run build`) and prepared for Vercel/Firebase deployment.
-- **Note**: The app is configured for server-side Firebase Admin access and Ollama chat via `OLLAMA_HOST`.
+- **Note**: The app is configured for server-side Firebase Admin access and Groq Cloud API chat via `GROQ_API_KEY` (with OpenRouter fallback via `OPENROUTER_API_KEY`).
 
 ## 5. Firebase / Firestore Integration Status
 - **Status**: Firestore is the primary backend for app data, with Firebase Storage and Admin SDK used for secure file uploads and metadata.

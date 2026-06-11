@@ -84,7 +84,7 @@ The V0 mental health AI platform is now **fully production-ready** with a score 
 - **Styling**: Tailwind CSS 4.2.0
 - **Authentication**: Firebase Auth
 - **Database**: Firestore
-- **AI**: Ollama (local/tunneled)
+- **AI**: Groq API / OpenRouter (Llama 3)
 - **Emotion Detection**: face-api.js (client-side)
 - **Deployment**: Vercel
 
@@ -276,7 +276,7 @@ The V0 mental health AI platform is now **fully production-ready** with a score 
 ### Prerequisites
 1. Vercel account
 2. Firebase project configured
-3. Ollama server running (local or tunneled)
+3. Groq / OpenRouter API keys configured
 4. Environment variables ready
 
 ### Quick Deploy
@@ -300,7 +300,9 @@ NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project
 NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_bucket
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
-NEXT_PUBLIC_OLLAMA_HOST=your_ollama_url
+GROQ_API_KEY=your_groq_api_key
+GROQ_MODEL=llama-3.3-70b-versatile
+OPENROUTER_API_KEY=your_openrouter_api_key
 NEXT_PUBLIC_SITE_URL=https://your-domain.com
 NEXT_PUBLIC_LOGO_URL=/logo.png
 ```
@@ -366,7 +368,7 @@ NEXT_PUBLIC_LOGO_URL=/logo.png
 ## 🎯 Known Limitations
 
 ### Current Limitations
-1. **Ollama Dependency**: Requires Ollama server (local or tunnel)
+1. **API Key Config**: Requires Groq / OpenRouter API keys
 2. **Emotion Detection**: Requires camera permissions
 3. **Offline Mode**: Limited functionality without internet
 4. **Browser Support**: Modern browsers only (ES2020+)
@@ -393,7 +395,7 @@ NEXT_PUBLIC_LOGO_URL=/logo.png
 ### Troubleshooting
 1. Check environment variables
 2. Verify Firebase configuration
-3. Ensure Ollama is running
+3. Ensure Groq or OpenRouter API keys are set up
 4. Clear `.next` and rebuild
 5. Check Vercel logs
 

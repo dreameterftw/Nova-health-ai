@@ -1,8 +1,18 @@
 "use client";
 
-import React, { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from "react";
 import { useAuth } from "./AuthContext";
 import type { EmotionState } from "./EmotionContext";
+import { fetchUserActivityData } from "@/lib/activityStore";
+import {
+  buildUserActivityContext,
+  buildWelcomeMessage,
+  type UserActivityContext,
+} from "@/lib/userContext";
+import {
+  DEFAULT_CHAT_LANGUAGE,
+  type ChatLanguageCode,
+} from "@/lib/chatLanguages";
 
 export type MessageRole = "user" | "assistant";
 
@@ -30,6 +40,8 @@ interface ChatContextType {
   messages: Message[];
   isTyping: boolean;
   crisisAlert: CrisisAlert | null;
+  chatLanguage: ChatLanguageCode;
+  setChatLanguage: (code: ChatLanguageCode) => void;
   sendMessage: (content: string, emotion?: EmotionState | null) => Promise<void>;
   clearChat: () => void;
   submitFeedback: (messageId: string, feedback: 1 | -1) => void;
@@ -39,6 +51,7 @@ interface ChatContextType {
 
 const ChatContext = createContext<ChatContextType | null>(null);
 const CHAT_HISTORY_PREFIX = "nova_chat_history";
+const CHAT_LANGUAGE_KEY = "nova_chat_language";
 
 // ── Crisis detection (Client-side for instant safety) ──────────────────────────
 const CRISIS_KEYWORDS: Record<CrisisSeverity, string[]> = {
@@ -71,13 +84,18 @@ function detectCrisis(text: string): { severity: CrisisSeverity; keywords: strin
   return null;
 }
 
-const WELCOME: Message = {
-  id: "welcome",
-  role: "assistant",
-  content:
-    "Hello, I am NOVA — your private AI wellness companion. I'm connected to your secure health vault and ready to support your journey.\n\nHow are you feeling today?",
-  timestamp: new Date(),
-};
+function createWelcomeMessage(content: string): Message {
+  return {
+    id: "welcome",
+    role: "assistant",
+    content,
+    timestamp: new Date(),
+  };
+}
+
+function countUserExchanges(msgs: Message[]): number {
+  return msgs.filter((m) => m.role === "user" && m.id !== "welcome").length;
+}
 
 function getChatStorageKey(userId?: string) {
   return userId ? `${CHAT_HISTORY_PREFIX}:${userId}` : CHAT_HISTORY_PREFIX;
@@ -109,55 +127,139 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [isTyping, setIsTyping] = useState(false);
   const [crisisAlert, setCrisisAlert] = useState<CrisisAlert | null>(null);
   const [isHydrated, setIsHydrated] = useState(false);
+  const [userContext, setUserContext] = useState<UserActivityContext | null>(null);
+  const [chatLanguage, setChatLanguageState] = useState<ChatLanguageCode>(DEFAULT_CHAT_LANGUAGE);
+  const welcomeBuiltRef = useRef(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(CHAT_LANGUAGE_KEY) as ChatLanguageCode | null;
+      if (saved) setChatLanguageState(saved);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  const setChatLanguage = useCallback((code: ChatLanguageCode) => {
+    setChatLanguageState(code);
+    try {
+      localStorage.setItem(CHAT_LANGUAGE_KEY, code);
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  // Load user activity context (mood, journals, vault) for awareness
+  useEffect(() => {
+    if (!user?.id) {
+      setUserContext(null);
+      return;
+    }
+
+    let cancelled = false;
+    fetchUserActivityData(user.id).then((data) => {
+      if (cancelled) return;
+      setUserContext(
+        buildUserActivityContext(user, {
+          messageCount: 0,
+          ...data,
+        })
+      );
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  const buildWelcome = useCallback(
+    (historyCount: number, language: ChatLanguageCode = chatLanguage) => {
+      const ctx = userContext
+        ? { ...userContext, messageCount: historyCount, isReturning: historyCount > 0 }
+        : buildUserActivityContext(user, { messageCount: historyCount });
+      return createWelcomeMessage(buildWelcomeMessage(user?.name, ctx, language));
+    },
+    [user, userContext, chatLanguage]
+  );
 
   // 1. Initial Load & Real-time Subscription (Firestore OR LocalStorage)
   useEffect(() => {
     let unsubscribe: () => void = () => {};
+    welcomeBuiltRef.current = false;
+
+    const applyWelcome = (history: Message[]) => {
+      if (history.length > 0) {
+        setMessages(history);
+        setUserContext((prev) =>
+          prev
+            ? {
+                ...prev,
+                messageCount: countUserExchanges(history),
+                isReturning: countUserExchanges(history) > 0,
+              }
+            : prev
+        );
+      } else if (!welcomeBuiltRef.current) {
+        welcomeBuiltRef.current = true;
+        setMessages([buildWelcome(0)]);
+      }
+      setIsHydrated(true);
+    };
 
     const setupConversation = async () => {
       if (user?.isAuthenticated && user?.id) {
         try {
           const { collection, query, orderBy, onSnapshot } = await import("firebase/firestore");
           const { db } = await import("@/lib/firebase");
-          
+
           const q = query(
-            collection(db, "users", user.id, "messages"), 
+            collection(db, "users", user.id, "messages"),
             orderBy("timestamp", "asc")
           );
-          
+
           unsubscribe = onSnapshot(q, (snapshot) => {
             const history = snapshot.docs.map(doc => ({
               ...doc.data(),
               id: doc.id,
               timestamp: doc.data().timestamp?.toDate() || new Date()
             })) as Message[];
-            
-            if (history.length > 0) {
-              setMessages(history);
-            } else {
-              setMessages([WELCOME]);
-            }
-            setIsHydrated(true);
+
+            applyWelcome(history);
           }, () => {
             const localMessages = loadLocalMessages(user.id);
-            setMessages(localMessages?.length ? localMessages : [WELCOME]);
-            setIsHydrated(true);
+            applyWelcome(localMessages?.length ? localMessages : []);
           });
-        } catch (e) {
+        } catch {
           const localMessages = loadLocalMessages(user.id);
-          setMessages(localMessages?.length ? localMessages : [WELCOME]);
-          setIsHydrated(true);
+          applyWelcome(localMessages?.length ? localMessages : []);
         }
       } else {
         const localMessages = loadLocalMessages();
-        setMessages(localMessages?.length ? localMessages : [WELCOME]);
-        setIsHydrated(true);
+        applyWelcome(localMessages?.length ? localMessages : []);
       }
     };
 
     setupConversation();
     return () => unsubscribe();
-  }, [user?.id, user?.isAuthenticated]);
+  }, [user?.id, user?.isAuthenticated, buildWelcome]);
+
+  // Personalize welcome once activity context loads (empty chats only)
+  useEffect(() => {
+    if (!userContext || !isHydrated) return;
+    setMessages((prev) => {
+      if (prev.some((m) => m.role === "user")) return prev;
+      return [buildWelcome(0)];
+    });
+  }, [userContext, isHydrated, buildWelcome]);
+
+  // Rebuild welcome when language changes (empty chats only)
+  useEffect(() => {
+    if (!isHydrated) return;
+    setMessages((prev) => {
+      if (prev.some((m) => m.role === "user")) return prev;
+      return [buildWelcome(0, chatLanguage)];
+    });
+  }, [chatLanguage, isHydrated, buildWelcome]);
 
   // 2. Persistent Saving
   useEffect(() => {
@@ -199,14 +301,25 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           "Content-Type": "application/json",
           "Accept": "application/x-ndjson"
         },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           messages: [
-            // Only send last 10 messages to avoid context overflow
-            ...messages.slice(-10).map(m => ({ role: m.role, content: m.content })),
-            { role: "user", content: content }
+            ...messages
+              .filter((m) => m.id !== "welcome")
+              .slice(-20)
+              .map((m) => ({ role: m.role, content: m.content })),
+            { role: "user", content: content },
           ],
           currentEmotion: emotion,
-          userProfile: { name: user?.name }
+          userProfile: { name: user?.name },
+          userContext: userContext
+            ? {
+                ...userContext,
+                messageCount: countUserExchanges(messages),
+                isReturning: countUserExchanges(messages) > 0,
+              }
+            : undefined,
+          exchangeCount: countUserExchanges(messages),
+          language: chatLanguage,
         })
       });
 
@@ -319,7 +432,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsTyping(false);
     }
-  }, [messages, user]);
+  }, [messages, user, userContext, chatLanguage]);
 
   const clearChat = useCallback(async () => {
     if (user?.isAuthenticated) {
@@ -334,10 +447,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       }
     }
     
-    setMessages([WELCOME]);
+    setMessages([buildWelcome(0)]);
+    welcomeBuiltRef.current = true;
     setCrisisAlert(null);
     localStorage.removeItem(getChatStorageKey(user?.id));
-  }, [user]);
+  }, [user, buildWelcome]);
 
   const submitFeedback = useCallback((messageId: string, feedback: 1 | -1) => {
     setMessages((prev) => prev.map((m) => (m.id === messageId ? { ...m, feedback } : m)));
@@ -410,7 +524,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   if (!isHydrated) return null;
 
   return (
-    <ChatContext.Provider value={{ messages, isTyping, crisisAlert, sendMessage, clearChat, submitFeedback, dismissCrisis, uploadDocument }}>
+    <ChatContext.Provider value={{ messages, isTyping, crisisAlert, chatLanguage, setChatLanguage, sendMessage, clearChat, submitFeedback, dismissCrisis, uploadDocument }}>
       {children}
     </ChatContext.Provider>
   );

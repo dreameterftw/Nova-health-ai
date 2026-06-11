@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import { ProfilePanel } from "@/components/dashboard/ProfilePanel";
 import { RecoveryPlan } from "@/components/dashboard/RecoveryPlan";
+import { JournalPanel } from "@/components/dashboard/JournalPanel";
 import { ResourcesPanel } from "@/components/dashboard/ResourcesPanel";
 import { ChatPanel } from "@/components/dashboard/ChatPanel";
 import { EmotionMonitor } from "@/components/dashboard/EmotionMonitor";
@@ -38,7 +39,7 @@ const C = {
   navIconActive: "#5B5EF4",
 };
 
-type ActiveTab = "home" | "chat" | "emotion" | "vault" | "recovery" | "profile" | "resources";
+type ActiveTab = "home" | "chat" | "emotion" | "vault" | "recovery" | "journal" | "profile" | "resources";
 
 // ─── SVG icon helpers ─────────────────────────────────────────────────────────
 function HomeIcon({ active }: { active: boolean }) {
@@ -158,6 +159,7 @@ export function DashboardShell() {
     emotion: "Emotion Scan",
     vault: "Medical Vault",
     recovery: "Recovery Plan",
+    journal: "Journal",
     profile: "My Profile",
     resources: "Learn",
   };
@@ -236,6 +238,7 @@ export function DashboardShell() {
             {activeTab === "emotion" && <EmotionMonitor />}
             {activeTab === "vault" && <UploadVault />}
             {activeTab === "recovery" && <RecoveryPlan />}
+            {activeTab === "journal" && <JournalPanel />}
             {activeTab === "resources" && <ResourcesPanel />}
             {activeTab === "profile" && <ProfilePanel />}
           </motion.div>

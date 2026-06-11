@@ -255,7 +255,7 @@ vercel --prod
 If you encounter any issues:
 1. Check environment variables are set correctly
 2. Verify Firebase configuration
-3. Ensure Ollama server is running (for AI chat)
+3. Ensure Groq or OpenRouter API keys are set up (for AI chat)
 4. Clear `.next` folder and rebuild: `rm -rf .next && npm run build`
 5. Check Vercel deployment logs
 

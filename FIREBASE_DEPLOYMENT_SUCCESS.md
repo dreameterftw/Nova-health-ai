@@ -32,7 +32,7 @@ Your NOVA V0 app is now live on Firebase Hosting!
 - ✅ Authentication (Email/Password, Google OAuth)
 - ✅ Consent flow (3 required consents)
 - ✅ Dashboard with all features
-- ✅ AI Chat with NOVA (Ollama)
+- ✅ AI Chat with NOVA (Groq/OpenRouter)
 - ✅ Emotion detection with live camera feed
 - ✅ Medical vault
 - ✅ Profile management
@@ -41,7 +41,7 @@ Your NOVA V0 app is now live on Firebase Hosting!
 
 ### Configuration
 - ✅ Firebase (novahealthcare-ai)
-- ✅ Ollama (Google Colab tunnel)
+- ✅ Groq / OpenRouter API configuration
 - ✅ Security headers
 - ✅ PWA manifest
 - ✅ Sitemap
@@ -104,8 +104,10 @@ FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account", ... }
 FIREBASE_DATABASE_URL=https://novahealthcare-ai-default-rtdb.asia-southeast1.firebasedatabase.app
 FIREBASE_STORAGE_BUCKET=novahealthcare-ai.firebasestorage.app
 
-# Ollama (Google Colab)
-OLLAMA_HOST=https://your-ollama-tunnel-url.trycloudflare.com
+# AI Configuration (Groq / OpenRouter)
+GROQ_API_KEY=your_groq_api_key
+GROQ_MODEL=llama-3.3-70b-versatile
+OPENROUTER_API_KEY=your_openrouter_api_key
 
 # App
 NEXT_PUBLIC_SITE_URL=https://novahealthcare-ai.web.app
@@ -209,9 +211,8 @@ firebase hosting:channel:open
 
 ### Issue: Chat Not Working
 **Solution**:
-- Verify Google Colab notebook is running
-- Check Cloudflare tunnel is active
-- Test: `curl https://bowling-cradle-bearing-cpu.trycloudflare.com/api/tags`
+- Verify `GROQ_API_KEY` or `OPENROUTER_API_KEY` is correctly configured in your server environment variables.
+- Check that the server backend is functioning.
 
 ### Issue: PWA Install Button Not Showing
 **Solution**:
@@ -265,7 +266,7 @@ firebase hosting:rollback
 - ✅ Authentication flows
 - ✅ Consent management
 - ✅ Dashboard navigation
-- ✅ AI chat (Ollama)
+- ✅ AI chat (Groq/OpenRouter)
 - ✅ Emotion detection
 - ✅ Camera feed display
 - ✅ PWA support

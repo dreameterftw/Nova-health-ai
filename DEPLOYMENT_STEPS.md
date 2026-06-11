@@ -119,7 +119,9 @@ NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_project.firebasestorage.app
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
 FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account", ... }
-OLLAMA_HOST=https://your-ollama-tunnel-url.trycloudflare.com
+GROQ_API_KEY=your_groq_api_key
+GROQ_MODEL=llama-3.3-70b-versatile
+OPENROUTER_API_KEY=your_openrouter_api_key
 NEXT_PUBLIC_LOGO_URL=/logo.png
 NEXT_PUBLIC_SITE_URL=https://your-project.vercel.app
 ```
@@ -233,19 +235,13 @@ vercel --prod
 4. Ensure variables are set for "Production" environment
 5. Click "Redeploy" after adding variables
 
-### Issue 3: Ollama Not Responding
+### Issue 3: AI Chat Not Responding
 **Error**: Chat messages don't get responses
 
 **Solution**:
-1. Check Google Colab notebook is running
-2. Verify Cloudflare tunnel is active
-3. Test endpoint:
-   ```bash
-   curl $OLLAMA_HOST/api/tags
-   ```
-4. If tunnel URL changed:
-   - Update `OLLAMA_HOST` in Vercel
-   - Redeploy
+1. Check that `GROQ_API_KEY` or `OPENROUTER_API_KEY` is correctly configured in Vercel Dashboard.
+2. Verify that your API keys are valid and have not expired or run out of quota.
+3. Redeploy the application if you recently changed the keys to ensure the environment variables are active.
 
 ### Issue 4: PWA Install Button Not Showing
 **Error**: Button doesn't appear

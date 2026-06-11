@@ -431,7 +431,7 @@ function FeatureGrid() {
 
 const STATS = [
   { value: "98%", label: "Privacy Score", sub: "Zero cloud biometrics" },
-  { value: "<1s", label: "Analysis Speed", sub: "On-device inference" },
+  { value: "<1s", label: "Analysis Speed", sub: "Instant Groq AI" },
   { value: "24/7", label: "NOVA Available", sub: "Always there for you" },
   { value: "5-star", label: "Early Reviews", sub: "Loved by beta users" },
 ];
@@ -540,7 +540,7 @@ export function LandingPage() {
                 className="inline-flex items-center gap-2.5 px-4 py-2 rounded-full text-xs font-bold mb-6"
                 style={{ background: "#EEF2FF", color: "#4338CA", border: "1px solid #C7D2FE" }}>
                 <div className="w-1.5 h-1.5 rounded-full" style={{ background: "#16A34A" }} />
-                Private by design — all AI runs on your device
+                Private by design — secure Groq AI & local scanning
               </motion.div>
 
               {/* Hero headline */}
@@ -559,7 +559,7 @@ export function LandingPage() {
                 transition={{ duration: 0.65, delay: 0.14 }}
                 className="text-base lg:text-lg leading-relaxed mb-7 mx-auto lg:mx-0"
                 style={{ color: C.textMid, maxWidth: 480 }}>
-                Emotion-aware conversations, medical report analysis, and personalised recovery plans — running privately on your device.
+                Emotion-aware conversations, medical report analysis, and personalised recovery plans — secured privately and powered by Groq.
               </motion.p>
 
               {/* CTAs */}
@@ -732,11 +732,11 @@ export function LandingPage() {
               Your health data stays{" "}<GradText>yours.</GradText>
             </h2>
             <p className="text-lg leading-relaxed mb-10" style={{ color: C.textMid }}>
-              No data brokers. No cloud analysis of your biometrics. All facial scanning, report parsing, and AI inference runs locally on your device — always.
+              No data brokers. No cloud analysis of your biometrics. Facial scanning is performed locally, and AI analysis is secured with top-tier cloud APIs.
             </p>
 
             <div className="flex flex-wrap gap-3 justify-center">
-              {["On-device AI inference", "Zero biometric uploads", "End-to-end encryption", "No third-party sharing", "HIPAA-ready architecture"].map((b) => (
+              {["High-speed Groq AI", "Zero biometric uploads", "End-to-end encryption", "No third-party sharing", "HIPAA-ready architecture"].map((b) => (
                 <div key={b} className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold"
                   style={{ background: "#F0FDFA", color: "#0D9488", border: "1px solid #99F6E4" }}>
                   <Check size={12} /> {b}

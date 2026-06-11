@@ -60,8 +60,10 @@ NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_bucket
 NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
 
-# Ollama (Required for AI chat)
-OLLAMA_HOST=your_ollama_url
+# AI Configuration (Groq / OpenRouter)
+GROQ_API_KEY=your_groq_api_key
+GROQ_MODEL=llama-3.3-70b-versatile
+OPENROUTER_API_KEY=your_openrouter_api_key
 
 # App Config
 NEXT_PUBLIC_SITE_URL=https://your-domain.com
@@ -284,12 +286,11 @@ npm run build
 3. Check Firebase security rules
 4. Ensure billing is enabled (if using Firestore)
 
-### Issue: Ollama Not Connecting
+### Issue: AI Chat Not Responding
 **Solution**:
-1. Verify `OLLAMA_HOST` is correct
-2. Check Ollama server is running
-3. If using tunnel, verify tunnel is active
-4. Test Ollama endpoint directly: `curl $OLLAMA_HOST/api/tags`
+1. Verify `GROQ_API_KEY` or `OPENROUTER_API_KEY` is set in your environment variables.
+2. Check your API key quotas and validity in the Groq/OpenRouter dashboard.
+3. Verify the server-side logs on Vercel to check for any fetch errors.
 
 ### Issue: Authentication Not Working
 **Solution**:

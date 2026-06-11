@@ -55,7 +55,9 @@ FIREBASE_STORAGE_BUCKET=your_project.firebasestorage.app
 
 ### AI Configuration (Server-only)
 ```env
-OLLAMA_HOST=https://your-ollama-tunnel-url.trycloudflare.com
+GROQ_API_KEY=your_groq_api_key
+GROQ_MODEL=llama-3.3-70b-versatile
+OPENROUTER_API_KEY=your_openrouter_api_key
 ```
 
 ### App Configuration
@@ -103,9 +105,12 @@ vercel env add FIREBASE_DATABASE_URL production
 vercel env add FIREBASE_STORAGE_BUCKET production
 # Paste: your_project.firebasestorage.app
 
-# Ollama
-vercel env add OLLAMA_HOST production
-# Paste: https://your-ollama-tunnel-url.trycloudflare.com
+# AI Configuration
+vercel env add GROQ_API_KEY production
+# Paste: your_groq_api_key
+
+vercel env add OPENROUTER_API_KEY production
+# Paste: your_openrouter_api_key
 
 # App Config
 vercel env add NEXT_PUBLIC_LOGO_URL production
@@ -127,7 +132,7 @@ vercel --prod
 ### Before Deployment
 - [x] Environment variables updated in `.env.local`
 - [x] Firebase configuration verified
-- [x] Ollama URL configured
+- [x] Groq / OpenRouter API keys configured
 - [x] Build tested locally
 
 ### During Deployment
@@ -197,24 +202,24 @@ vercel --prod
 
 ---
 
-## ðŸ“Š What's Configured
+## 📊 What's Configured
 
-### Firebase (novahealthcare-ai)
-- âœ… Authentication (Email/Password, Google OAuth)
-- âœ… Firestore Database
-- âœ… Realtime Database
-- âœ… Storage
-- âœ… Messaging
+### Firebase (nova-mindgg)
+- ✅ Authentication (Email/Password, Google OAuth)
+- ✅ Firestore Database
+- ✅ Realtime Database
+- ✅ Storage
+- ✅ Messaging
 
-### Ollama (Google Colab)
-- âœ… Cloudflare tunnel configured
-- âœ… Chat API endpoint ready
-- âœ… AI model accessible
+### AI Configuration (Groq / OpenRouter)
+- ✅ Groq API key configured (primary)
+- ✅ OpenRouter API key configured (fallback)
+- ✅ Chat & Document analysis routes ready
 
 ### PWA
-- âœ… Install button enabled
-- âœ… Manifest configured
-- âœ… Service worker ready
+- ✅ Install button enabled
+- ✅ Manifest configured
+- ✅ Service worker ready
 
 ---
 

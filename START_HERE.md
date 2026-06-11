@@ -51,8 +51,13 @@ FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account", ... }
 FIREBASE_DATABASE_URL=https://your_project.firebasedatabase.app
 FIREBASE_STORAGE_BUCKET=your_project.firebasestorage.app
 
-# Ollama
-OLLAMA_HOST=https://your-ollama-tunnel-url.trycloudflare.com
+# AI Configuration (Groq — primary)
+GROQ_API_KEY=your_groq_api_key
+GROQ_MODEL=llama-3.3-70b-versatile
+
+# AI Configuration (OpenRouter — fallback)
+OPENROUTER_API_KEY=your_openrouter_api_key
+
 NEXT_PUBLIC_LOGO_URL=/logo.png
 NEXT_PUBLIC_SITE_URL=https://your-project.vercel.app
 ```

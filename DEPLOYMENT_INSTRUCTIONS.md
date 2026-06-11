@@ -5,7 +5,7 @@
 All items completed:
 - [x] Build successful (no errors)
 - [x] TypeScript compilation clean
-- [x] Ollama URL updated to Google Colab tunnel
+- [x] Groq API key configured
 - [x] PWA install button added
 - [x] All environment variables configured
 - [x] Security headers enabled
@@ -14,14 +14,15 @@ All items completed:
 
 ---
 
-## ðŸ”§ Latest Updates (April 17, 2026)
+## 🔧 Latest Updates (April 17, 2026)
 
-### 1. Ollama URL Updated âœ…
+### 1. AI Provider Updated ✅
 ```env
-OLLAMA_HOST=https://bowling-cradle-bearing-cpu.trycloudflare.com
+GROQ_API_KEY=your_groq_api_key
+GROQ_MODEL=llama-3.3-70b-versatile
 ```
 
-### 2. PWA Install Button Added âœ…
+### 2. PWA Install Button Added ✅
 - Created `hooks/usePWAInstall.ts` - Custom hook for PWA installation
 - Created `components/pwa/InstallButton.tsx` - Reusable install button component
 - Added to landing page header (desktop)
@@ -39,7 +40,7 @@ OLLAMA_HOST=https://bowling-cradle-bearing-cpu.trycloudflare.com
 
 ---
 
-## ðŸš€ Deploy to Vercel
+## 🚀 Deploy to Vercel
 
 ### Option 1: Vercel CLI (Recommended)
 
@@ -67,9 +68,9 @@ vercel --prod
 
 ---
 
-## ðŸ” Environment Variables for Vercel
+## ⚙️ Environment Variables for Vercel
 
-Add these in Vercel Dashboard â†’ Project Settings â†’ Environment Variables:
+Add these in Vercel Dashboard → Project Settings → Environment Variables:
 
 ```env
 # Firebase Configuration
@@ -86,8 +87,12 @@ FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account", ... }
 FIREBASE_DATABASE_URL=https://your_project.firebasedatabase.app
 FIREBASE_STORAGE_BUCKET=your_project.firebasestorage.app
 
-# AI Configuration (Ollama - Server-only)
-OLLAMA_HOST=https://your-ollama-tunnel-url.trycloudflare.com
+# AI Configuration (Groq — primary, server-only)
+GROQ_API_KEY=your_groq_api_key
+GROQ_MODEL=llama-3.3-70b-versatile
+
+# AI Configuration (OpenRouter — fallback, server-only)
+OPENROUTER_API_KEY=your_openrouter_api_key
 
 # App Configuration
 NEXT_PUBLIC_LOGO_URL=/logo.png
@@ -98,7 +103,7 @@ NEXT_PUBLIC_SITE_URL=https://your-vercel-domain.vercel.app
 
 ---
 
-## ðŸ“ Vercel Configuration
+## 📋 Vercel Configuration
 
 ### Root Directory
 Set to: `v0`
@@ -123,11 +128,11 @@ Next.js
 
 ---
 
-## ðŸ” Post-Deployment Verification
+## 🔎 Post-Deployment Verification
 
 After deployment, test these critical flows:
 
-### 1. Authentication âœ…
+### 1. Authentication ✅
 - [ ] Visit your deployed URL
 - [ ] Click "Get started" or "Sign in"
 - [ ] Test email/password registration
@@ -137,7 +142,7 @@ After deployment, test these critical flows:
 - [ ] Accept all 3 consents
 - [ ] Verify redirect to dashboard
 
-### 2. PWA Installation âœ…
+### 2. PWA Installation ✅
 - [ ] Visit landing page
 - [ ] Look for "Install App" button in header
 - [ ] Click the button
@@ -146,7 +151,7 @@ After deployment, test these critical flows:
 - [ ] Verify app opens in standalone mode
 - [ ] Check button disappears after installation
 
-### 3. Dashboard Features âœ…
+### 3. Dashboard Features ✅
 - [ ] Test chat with NOVA (AI)
 - [ ] Test emotion detection (camera permission)
 - [ ] Test medical vault upload
@@ -154,7 +159,7 @@ After deployment, test these critical flows:
 - [ ] Test SOS button
 - [ ] Test logout
 
-### 4. Mobile Responsiveness âœ…
+### 4. Mobile Responsiveness ✅
 - [ ] Test on mobile device
 - [ ] Verify responsive layout
 - [ ] Test touch interactions
@@ -162,7 +167,7 @@ After deployment, test these critical flows:
 
 ---
 
-## ðŸ› Troubleshooting
+## 🛠 Troubleshooting
 
 ### Issue: Build Fails on Vercel
 **Solution**:
@@ -185,12 +190,12 @@ After deployment, test these critical flows:
 3. Ensure Firebase Auth is enabled
 4. Verify Firestore rules are deployed
 
-### Issue: Ollama Not Responding
+### Issue: AI Chat Not Responding
 **Solution**:
-1. Verify Google Colab notebook is running
-2. Check Cloudflare tunnel is active
-3. Test Ollama endpoint: `curl $OLLAMA_HOST/api/tags`
-4. Update `OLLAMA_HOST` if tunnel URL changed
+1. Verify `GROQ_API_KEY` or `OPENROUTER_API_KEY` is set in Vercel environment variables
+2. Check API key validity at the provider's dashboard
+3. Review Vercel deployment logs for 4xx/5xx errors
+4. If using Groq, verify your key at [console.groq.com](https://console.groq.com)
 
 ### Issue: PWA Install Button Not Showing
 **Solution**:
@@ -209,11 +214,11 @@ This shouldn't happen with Next.js on Vercel, but if it does:
 
 ---
 
-## ðŸ“Š Monitoring & Analytics
+## 📊 Monitoring & Analytics
 
 ### Vercel Analytics (Built-in)
 - Automatically enabled on Vercel
-- View in Vercel Dashboard â†’ Analytics
+- View in Vercel Dashboard → Analytics
 - Tracks page views, performance, etc.
 
 ### Firebase Analytics (Optional)
@@ -236,12 +241,12 @@ npx @sentry/wizard@latest -i nextjs
 
 ---
 
-## ðŸ”„ Continuous Deployment
+## 🔄 Continuous Deployment
 
 ### Automatic Deployments
 Vercel automatically deploys when you push to your Git repository:
-- Push to `main` branch â†’ Production deployment
-- Push to other branches â†’ Preview deployment
+- Push to `main` branch → Production deployment
+- Push to other branches → Preview deployment
 
 ### Manual Deployments
 ```bash
@@ -254,10 +259,10 @@ vercel --prod
 
 ---
 
-## ðŸŽ¯ Custom Domain (Optional)
+## 🎯 Custom Domain (Optional)
 
 ### Add Custom Domain
-1. Go to Vercel Dashboard â†’ Project Settings â†’ Domains
+1. Go to Vercel Dashboard → Project Settings → Domains
 2. Click "Add Domain"
 3. Enter your domain (e.g., `nova-health.com`)
 4. Follow DNS configuration instructions
@@ -271,7 +276,7 @@ NEXT_PUBLIC_SITE_URL=https://your-custom-domain.com
 
 ---
 
-## ðŸ“± PWA Features
+## 📱 PWA Features
 
 ### What Users Get
 - **Install Button**: Appears in header when app is installable
@@ -280,7 +285,7 @@ NEXT_PUBLIC_SITE_URL=https://your-custom-domain.com
 - **Offline Support**: Basic offline functionality (future enhancement)
 - **Push Notifications**: Ready for future implementation
 
-### PWA Requirements Met âœ…
+### PWA Requirements Met ✅
 - [x] HTTPS (Vercel provides)
 - [x] manifest.webmanifest
 - [x] Service worker ready
@@ -289,9 +294,9 @@ NEXT_PUBLIC_SITE_URL=https://your-custom-domain.com
 
 ---
 
-## ðŸ”’ Security Checklist
+## 🔒 Security Checklist
 
-### Pre-Deployment âœ…
+### Pre-Deployment ✅
 - [x] No hardcoded secrets in code
 - [x] All sensitive data in environment variables
 - [x] Security headers configured
@@ -308,9 +313,9 @@ NEXT_PUBLIC_SITE_URL=https://your-custom-domain.com
 
 ---
 
-## ðŸ“ˆ Performance Optimization
+## 📈 Performance Optimization
 
-### Already Implemented âœ…
+### Already Implemented ✅
 - Code splitting
 - Lazy loading
 - Image optimization ready
@@ -325,7 +330,7 @@ NEXT_PUBLIC_SITE_URL=https://your-custom-domain.com
 
 ---
 
-## ðŸŽ‰ You're Ready to Deploy!
+## 🎉 You're Ready to Deploy!
 
 ### Quick Deploy Command
 ```bash
@@ -346,7 +351,7 @@ cd v0 && vercel --prod
 
 ---
 
-## ðŸ“ž Support
+## ☎️ Support
 
 ### Documentation
 - `README.md` - Project overview
@@ -362,24 +367,23 @@ cd v0 && vercel --prod
 
 ---
 
-## âœ… Final Checklist
+## ✅ Final Checklist
 
 Before deploying:
 - [x] Build successful locally
 - [x] All environment variables ready
-- [x] Ollama URL updated
+- [x] Groq API key configured
 - [x] PWA install button working
 - [x] Documentation complete
 - [x] Git repository up to date
 
-**You're all set! Deploy with confidence! ðŸš€**
+**You're all set! Deploy with confidence! 🚀**
 
 ---
 
 **Date**: April 17, 2026  
 **Version**: v0.1.0  
-**Status**: âœ… READY TO DEPLOY  
-**Build**: âœ… SUCCESSFUL  
-**PWA**: âœ… ENABLED  
-**Ollama**: âœ… CONFIGURED
-
+**Status**: ✅ READY TO DEPLOY  
+**Build**: ✅ SUCCESSFUL  
+**PWA**: ✅ ENABLED  
+**Ollama**: — REMOVED (replaced by Groq Cloud API)

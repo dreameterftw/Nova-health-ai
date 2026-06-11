@@ -168,8 +168,10 @@ NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
 # Firebase Admin / Server-only
 FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account", ... }
 
-# AI Configuration (Ollama - Server-only)
-OLLAMA_HOST=https://your-ollama-tunnel-url.trycloudflare.com
+# AI Configuration (Groq / OpenRouter)
+GROQ_API_KEY=your_groq_api_key
+GROQ_MODEL=llama-3.3-70b-versatile
+OPENROUTER_API_KEY=your_openrouter_api_key
 
 # App Configuration
 NEXT_PUBLIC_LOGO_URL=/logo.png
