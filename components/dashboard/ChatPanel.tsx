@@ -2,10 +2,11 @@
 
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Trash2, ThumbsUp, ThumbsDown, X, Phone, Sparkles, Volume2, VolumeX, Languages } from "lucide-react";
+import { Send, Trash2, ThumbsUp, ThumbsDown, X, Phone, Sparkles, Volume2, VolumeX, Languages, Mic, MicOff } from "lucide-react";
 import { useChat, type Message } from "@/contexts/ChatContext";
 import { useEmotion } from "@/contexts/EmotionContext";
 import { useNovaTts } from "@/hooks/useNovaTts";
+import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { CHAT_LANGUAGES } from "@/lib/chatLanguages";
 import ReactMarkdown from "react-markdown";
 
@@ -232,6 +233,7 @@ export function ChatPanel() {
   const { messages, isTyping, sendMessage, clearChat, crisisAlert, dismissCrisis, submitFeedback, chatLanguage, setChatLanguage } = useChat();
   const { emotion } = useEmotion();
   const { supported: ttsSupported, ttsEnabled, setTtsEnabled, speakingId, speakMessage, stopSpeaking } = useNovaTts(chatLanguage);
+  const { isListening, getFullTranscript, resetTranscript, startListening, stopListening, isSupportedDevice: isVoiceSupported } = useVoiceInput(chatLanguage);
   const [input, setInput] = useState("");
   const [inputFocused, setInputFocused] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
@@ -263,6 +265,26 @@ export function ChatPanel() {
     stopSpeaking();
     lastAutoSpokenRef.current = null;
     clearChat();
+  };
+
+  const handleVoiceInput = async () => {
+    if (!isVoiceSupported) return;
+
+    if (isListening) {
+      // Stop listening and add transcribed text to input
+      stopListening();
+      const voiceText = getFullTranscript().trim();
+      if (voiceText) {
+        setInput((prev) => {
+          const combined = prev.trim() ? `${prev} ${voiceText}` : voiceText;
+          return combined;
+        });
+      }
+      resetTranscript();
+    } else {
+      // Start listening
+      startListening();
+    }
   };
 
   const handleSend = async () => {
@@ -421,18 +443,25 @@ export function ChatPanel() {
       <div className="flex-shrink-0 relative">
         {/* Ambient glow behind input */}
         <AnimatePresence>
-          {inputFocused && (
+          {(inputFocused || isListening) && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="absolute -inset-3 rounded-3xl pointer-events-none"
-              style={{ background: "radial-gradient(ellipse 90% 60% at 50% 100%, rgba(91,94,244,0.18) 0%, transparent 70%)", filter: "blur(12px)" }} />
+              style={{
+                background: isListening
+                  ? "radial-gradient(ellipse 90% 60% at 50% 100%, rgba(239,68,68,0.15) 0%, transparent 70%)"
+                  : "radial-gradient(ellipse 90% 60% at 50% 100%, rgba(91,94,244,0.18) 0%, transparent 70%)",
+                filter: "blur(12px)"
+              }} />
           )}
         </AnimatePresence>
 
         <div className="relative rounded-3xl p-3 flex items-end gap-3"
           style={{
             background: C.surface,
-            border: `1.5px solid ${inputFocused ? "rgba(91,94,244,0.50)" : C.border}`,
-            boxShadow: inputFocused ? "0 0 0 3px rgba(91,94,244,0.10)" : "none",
+            border: `1.5px solid ${isListening ? "rgba(239,68,68,0.50)" : inputFocused ? "rgba(91,94,244,0.50)" : C.border}`,
+            boxShadow: isListening
+              ? "0 0 0 3px rgba(239,68,68,0.10)"
+              : inputFocused ? "0 0 0 3px rgba(91,94,244,0.10)" : "none",
             transition: "border-color 0.2s, box-shadow 0.2s",
           }}>
           <textarea
@@ -446,6 +475,31 @@ export function ChatPanel() {
             className="flex-1 bg-transparent text-sm outline-none resize-none max-h-32 leading-relaxed"
             style={{ color: C.text, minHeight: 36, caretColor: C.indigoLight }}
           />
+          {isVoiceSupported && (
+            <motion.button
+              onClick={handleVoiceInput}
+              whileHover={{ scale: 1.08 }}
+              whileTap={{ scale: 0.90 }}
+              className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 transition-all relative"
+              style={{
+                background: isListening ? "rgba(239, 68, 68, 0.1)" : C.surface2,
+                border: `1.5px solid ${isListening ? "#EF4444" : C.border}`,
+                color: isListening ? "#DC2626" : C.textMid,
+              }}
+              title={isListening ? "Stop listening" : "Press to speak"}>
+              {isListening ? <Mic size={14} /> : <MicOff size={14} />}
+              {isListening && (
+                <>
+                  <motion.div
+                    animate={{ scale: [1, 1.5], opacity: [1, 0] }}
+                    transition={{ duration: 0.8, repeat: Infinity }}
+                    className="absolute inset-0 rounded-xl"
+                    style={{ border: "1.5px solid #EF4444" }}
+                  />
+                </>
+              )}
+            </motion.button>
+          )}
           <motion.button
             onClick={handleSend}
             disabled={!input.trim() || isTyping}
