@@ -6,7 +6,7 @@
 [![Next.js](https://img.shields.io/badge/Next.js-16.2.0-black)](https://nextjs.org/)
 [![Firebase](https://img.shields.io/badge/Firebase-12.12.0-orange)](https://firebase.google.com/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7.3-blue)](https://www.typescriptlang.org/)
-
+ 
 ---
 
 ## 🌟 Features
