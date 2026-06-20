@@ -339,7 +339,7 @@ For issues or questions:
 2. Review documentation files
 3. Open an issue on GitHub
 4. Contact the development team
-
+ 
 ---
 
 **Built with ❤️ for mental health and wellness**
