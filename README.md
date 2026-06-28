@@ -74,9 +74,43 @@ v0/
 
 ---
 
-## 🚀 Environment Configuration
+## 🛠️ Step-by-Step Deployment Guide
 
-Create a `.env.local` file in the root of the project with the following properties:
+Follow these steps to deploy NOVA from scratch to Vercel and link it to your Firebase instance.
+
+### Phase 1: Firebase Project Setup
+1. **Create Project**:
+   * Navigate to the [Firebase Console](https://console.firebase.google.com/).
+   * Click **Add Project**, name it (e.g., `nova-health-ai`), and click **Continue**.
+   * Choose whether to enable Google Analytics, then click **Create Project**.
+2. **Enable Authentication**:
+   * Under the **Build** section in the left sidebar, click **Authentication**, then click **Get Started**.
+   * Go to the **Sign-in method** tab.
+   * Enable the **Email/Password** provider and click **Save**.
+   * Optionally, enable **Google Sign-In** and configure your support email.
+3. **Set Up Cloud Firestore**:
+   * In the left sidebar under **Build**, click **Firestore Database**, then click **Create database**.
+   * Select your database location and click **Next**.
+   * Start in **Production mode** and click **Create**.
+   * Replace the rules in the **Rules** tab with the contents of your local `firestore.rules` file and click **Publish**.
+4. **Configure Firebase Storage**:
+   * Under **Build** in the left sidebar, click **Storage**, then click **Get Started**.
+   * Choose your cloud storage bucket location, click **Next**, and click **Done**.
+   * Deploy the contents of your local `storage.rules` file to control user file upload boundaries.
+5. **Add Web App Configuration**:
+   * In your Firebase Console dashboard, click the **Web icon (`</>`)** to register a new web application.
+   * Name your app, then click **Register app**.
+   * Copy the `firebaseConfig` object containing variables such as `apiKey`, `authDomain`, and `projectId`.
+
+### Phase 2: Create Firebase Service Account JSON (For Server-Side Admin SDK)
+1. In the Firebase Console, click the **Gear Icon (Project settings)** next to **Project Overview** in the left sidebar.
+2. Go to the **Service accounts** tab.
+3. Under the **Firebase Admin SDK** section, make sure **Node.js** is selected, and click **Generate new private key**.
+4. Save the downloaded `.json` file securely.
+5. Compress the content of this file into a single line string to use as the `FIREBASE_SERVICE_ACCOUNT_JSON` environment variable.
+
+### Phase 3: Setup Local Environment Variables
+Create a `.env.local` file in the root of the project (`v0/`) and configure the key fields:
 
 ```env
 # ─── FIREBASE APP CONFIG (CLIENT-SIDE) ───
@@ -113,38 +147,47 @@ NOVA_MAX_MESSAGES_IN=40
 NOVA_MAX_BODY_BYTES=65536
 ```
 
----
-
-## 🏗️ Local Development
-
-1. **Install Dependencies**:
-   ```bash
-   npm install
-   ```
-
-2. **Run Dev Server**:
-   ```bash
-   npm run dev
-   ```
-
-3. **Verify Build**:
-   ```bash
-   npm run build
-   ```
-
----
-
-## ⚡ Deployment to Vercel
-
+### Phase 4: Local Testing
+Verify that your application builds and runs correctly before deploying:
 ```bash
-# Install Vercel globally (if not already installed)
-npm install -g vercel
+# 1. Install packages
+npm install
 
-# Run Deployment
-vercel --prod
+# 2. Start local dev server
+npm run dev
+
+# 3. Test compilation & build bundling
+npm run build
 ```
 
-Configure all values from `.env.local` within your Vercel Dashboard under **Project Settings ➔ Environment Variables**.
+### Phase 5: Deploying to Vercel (Production)
+1. **Install Vercel CLI**:
+   ```bash
+   npm install -g vercel
+   ```
+2. **Authenticate & Link Project**:
+   ```bash
+   vercel login
+   ```
+3. **Deploy Code**:
+   ```bash
+   # Build & push a production release
+   vercel --prod
+   ```
+4. **Deploy Environment Variables**:
+   * Navigate to the [Vercel Dashboard](https://vercel.com).
+   * Open your project settings, choose **Environment Variables**, and paste the key-value pairs from your `.env.local` file.
+   * Save the variables, then trigger a redeployment to apply the configuration.
+
+---
+
+## ⚡ Post-Deployment Verifications
+
+Once deployed, perform the following validation checklist:
+1. **Authentication Flow**: Sign up a new user, log out, and log back in to ensure Firebase auth tokens are validated.
+2. **Daily Check-in**: Go to the **Pulse** page and complete a check-in to confirm that Firestore documents sync correctly.
+3. **Vision Vault**: Upload a sample PDF or text document and confirm that diagnostics are extracted and mapped onto the dashboard.
+4. **Emergency SOS**: Toggle the **SOS** banner, verify that the 4-second countdown abort works, and confirm location fetching runs without error.
 
 ---
 
