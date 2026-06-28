@@ -1,14 +1,19 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Trash2, ThumbsUp, ThumbsDown, X, Phone, Sparkles, Volume2, VolumeX, Languages, Mic, MicOff } from "lucide-react";
+import {
+  Send, Trash2, ThumbsUp, ThumbsDown, X, Phone, Sparkles,
+  Volume2, VolumeX, Languages, Mic, MicOff, Shield,
+  Copy, Check, ChevronDown,
+} from "lucide-react";
 import { useChat, type Message } from "@/contexts/ChatContext";
 import { useEmotion } from "@/contexts/EmotionContext";
 import { useNovaTts } from "@/hooks/useNovaTts";
 import { useVoiceInput } from "@/hooks/useVoiceInput";
 import { CHAT_LANGUAGES } from "@/lib/chatLanguages";
 import ReactMarkdown from "react-markdown";
+import { LOGO_URL } from "@/lib/constants";
 
 const C = {
   bg:          "#F8F9FC",
@@ -29,14 +34,53 @@ const C = {
   textSoft:    "#64748B",
 };
 
-import { LOGO_URL } from "@/lib/constants";
+// ADDED — time-of-day and context-aware suggestion sets
+function buildSuggestions(hour: number): { text: string; icon: string }[] {
+  if (hour < 9) return [
+    { text: "I didn't sleep well last night", icon: "🌙" },
+    { text: "I'm feeling anxious about the day ahead", icon: "😰" },
+    { text: "Help me start the morning mindfully", icon: "🌅" },
+    { text: "Something's been on my mind", icon: "💭" },
+  ];
+  if (hour < 13) return [
+    { text: "I've been feeling low energy today", icon: "🌿" },
+    { text: "Something's been on my mind", icon: "💭" },
+    { text: "I want to understand a health report", icon: "📋" },
+    { text: "I just need someone to listen", icon: "💛" },
+  ];
+  if (hour < 18) return [
+    { text: "I've had a long day", icon: "🌊" },
+    { text: "I'm not sure how I feel", icon: "🌿" },
+    { text: "I've been stressed at work", icon: "😤" },
+    { text: "I want to talk through something", icon: "💭" },
+  ];
+  return [
+    { text: "I'm finding it hard to wind down", icon: "🌙" },
+    { text: "I've had a long day", icon: "🌊" },
+    { text: "I just need someone to listen", icon: "💛" },
+    { text: "Something's been on my mind", icon: "💭" },
+  ];
+}
 
-const SUGGESTIONS = [
-  { text: "I've had a long day",       icon: "🌊" },
-  { text: "Something's been on my mind", icon: "💭" },
-  { text: "I'm not sure how I feel",   icon: "🌿" },
-  { text: "I just need someone to listen", icon: "💛" },
-];
+// ADDED — copy button with confirmation flash
+function CopyButton({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false);
+  const handleCopy = () => {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    });
+  };
+  return (
+    <motion.button
+      whileTap={{ scale: 0.85 }}
+      onClick={handleCopy}
+      title="Copy response"
+      className={`p-0.5 rounded transition-colors ${copied ? "text-green-600" : "text-slate-300 hover:text-slate-500"}`}>
+      {copied ? <Check size={10} /> : <Copy size={10} />}
+    </motion.button>
+  );
+}
 
 // ─── Message bubble ────────────────────────────────────────────────────────────
 function MessageBubble({
@@ -96,7 +140,9 @@ function MessageBubble({
           {isCrisis && (
             <div className="flex items-center gap-2 mb-2 pb-2" style={{ borderBottom: "1px solid #FECDD3" }}>
               <Phone size={11} style={{ color: "#9F1239" }} />
-              <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: "#9F1239" }}>Crisis Support</span>
+              <span className="text-[9px] font-black uppercase tracking-widest" style={{ color: "#9F1239" }}>
+                Crisis Support
+              </span>
             </div>
           )}
           <div className="prose prose-sm max-w-none text-[13px]">
@@ -111,6 +157,8 @@ function MessageBubble({
           </p>
           {isNova && onFeedback && (
             <div className="flex items-center gap-1">
+              {/* ADDED — copy button */}
+              <CopyButton text={msg.content} />
               {showSpeak && onSpeak && msg.content.trim() && (
                 <motion.button
                   whileTap={{ scale: 0.85 }}
@@ -158,6 +206,90 @@ function TypingIndicator() {
   );
 }
 
+// ─── Early warning banner ──────────────────────────────────────────────────────
+function EarlyWarningBanner({
+  level,
+  onTalk,
+}: {
+  level: "yellow" | "orange" | "red";
+  onTalk: (text: string) => void;
+}) {
+  const isRed = level === "red";
+  const copy =
+    level === "yellow"
+      ? "You've seemed a bit quiet lately. How are things going, not just health-wise, just generally?"
+      : level === "orange"
+      ? "I want to check in with you properly. You've had a tougher stretch lately, and you do not have to carry it alone."
+      : "I'm genuinely concerned about how you've been. I'm here to talk, and support is available right now if things feel overwhelming.";
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+      className="rounded-3xl p-4 mb-3"
+      style={{
+        background: isRed ? "#FFF1F2" : level === "orange" ? "#FFFBEB" : "#EEF2FF",
+        border: `1px solid ${isRed ? "#FECDD3" : level === "orange" ? "#FDE68A" : "#C7D2FE"}`,
+      }}>
+      <p className="text-sm font-bold leading-relaxed" style={{ color: isRed ? "#9F1239" : C.textMid }}>
+        {copy}
+      </p>
+
+      {level === "orange" && (
+        <div className="flex flex-wrap gap-2 mt-3">
+          <button onClick={() => onTalk("I'm okay, just a rough patch")}
+            className="px-3 py-2 rounded-2xl text-xs font-black"
+            style={{ background: "#FFFFFF", color: C.goldDark, border: "1px solid #FDE68A" }}>
+            I'm okay, just a rough patch
+          </button>
+          <button onClick={() => onTalk("Yeah, I want to talk about it")}
+            className="px-3 py-2 rounded-2xl text-xs font-black text-white"
+            style={{ background: C.gold }}>
+            Yeah, I want to talk about it
+          </button>
+        </div>
+      )}
+
+      {isRed && (
+        <div className="mt-3 rounded-2xl p-3 bg-white border border-rose-100">
+          <p className="text-[10px] font-black uppercase tracking-widest mb-2" style={{ color: C.rose }}>
+            If you need to talk to someone
+          </p>
+          {/* ADDED — tel: links on crisis numbers */}
+          <div className="grid gap-2 text-xs font-bold" style={{ color: C.textMid }}>
+            <a href="tel:9152987821"
+              className="flex items-center justify-between no-underline text-inherit hover:text-indigo-600 transition-colors">
+              <span className="flex items-center gap-1.5"><Phone size={10} /> iCall India</span>
+              <span style={{ color: C.rose }}>9152987821</span>
+            </a>
+            <a href="tel:18602662345"
+              className="flex items-center justify-between no-underline text-inherit hover:text-indigo-600 transition-colors">
+              <span className="flex items-center gap-1.5"><Phone size={10} /> Vandrevala Foundation</span>
+              <span style={{ color: C.rose }}>1860-2662-345</span>
+            </a>
+            <a href="tel:9820466627"
+              className="flex items-center justify-between no-underline text-inherit hover:text-indigo-600 transition-colors">
+              <span className="flex items-center gap-1.5"><Phone size={10} /> AASRA</span>
+              <span style={{ color: C.rose }}>9820466627</span>
+            </a>
+          </div>
+          <div className="flex gap-2 mt-3">
+            <a href="tel:9152987821"
+              className="flex-1 py-2 rounded-2xl text-xs font-black text-white flex items-center justify-center gap-1 no-underline"
+              style={{ background: C.rose }}>
+              <Phone size={12} /> Call now
+            </a>
+            <button onClick={() => onTalk("I want help telling my Family Circle that I'm having a difficult time")}
+              className="flex-1 py-2 rounded-2xl text-xs font-black"
+              style={{ background: "#FFF1F2", color: C.rose, border: "1px solid #FECDD3" }}>
+              Tell Family Circle
+            </button>
+          </div>
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
 // ─── Crisis banner ─────────────────────────────────────────────────────────────
 function CrisisBanner({ onDismiss }: { onDismiss: () => void }) {
   return (
@@ -169,8 +301,13 @@ function CrisisBanner({ onDismiss }: { onDismiss: () => void }) {
         <Phone size={12} style={{ color: "#9F1239", flexShrink: 0, marginTop: 2 }} />
         <div>
           <p className="text-xs font-black" style={{ color: "#9F1239" }}>Crisis Support Available</p>
+          {/* ADDED — tel: links in crisis banner */}
           <p className="text-[11px] mt-0.5 leading-relaxed" style={{ color: "#BE123C" }}>
-            iCall: <strong>9152987821</strong> · AASRA: <strong>9820466627</strong> · Emergency: <strong>112</strong>
+            <a href="tel:9152987821" className="no-underline font-black" style={{ color: "#BE123C" }}>iCall: 9152987821</a>
+            {" · "}
+            <a href="tel:9820466627" className="no-underline font-black" style={{ color: "#BE123C" }}>AASRA: 9820466627</a>
+            {" · "}
+            <a href="tel:112" className="no-underline font-black" style={{ color: "#BE123C" }}>Emergency: 112</a>
           </p>
         </div>
       </div>
@@ -183,16 +320,22 @@ function CrisisBanner({ onDismiss }: { onDismiss: () => void }) {
 }
 
 // ─── Empty state ───────────────────────────────────────────────────────────────
-function EmptyState({ onSuggest }: { onSuggest: (text: string) => void }) {
+// ADDED — suggestions pre-fill input instead of sending immediately
+function EmptyState({ onPrefill }: { onPrefill: (text: string) => void }) {
+  const [suggestions] = useState(() => buildSuggestions(new Date().getHours()));
+
   return (
     <div className="flex flex-col items-center justify-center h-full gap-6 pb-4">
-      {/* Animated NOVA avatar */}
       <div className="relative">
         <motion.div
           animate={{ scale: [1, 1.04, 1], opacity: [0.6, 1, 0.6] }}
           transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
           className="absolute inset-0 rounded-full"
-          style={{ background: "radial-gradient(circle, rgba(91,94,244,0.20) 0%, transparent 70%)", filter: "blur(20px)", transform: "scale(1.4)" }} />
+          style={{
+            background: "radial-gradient(circle, rgba(91,94,244,0.20) 0%, transparent 70%)",
+            filter: "blur(20px)",
+            transform: "scale(1.4)",
+          }} />
         <motion.div
           animate={{ y: [0, -6, 0] }}
           transition={{ duration: 3.2, repeat: Infinity, ease: "easeInOut" }}
@@ -203,23 +346,31 @@ function EmptyState({ onSuggest }: { onSuggest: (text: string) => void }) {
       </div>
 
       <div className="text-center px-6">
-        <h3 className="font-black text-xl mb-2" style={{ fontFamily: "var(--font-outfit, sans-serif)", color: C.text }}>
-          Hello, I&apos;m NOVA
+        <h3 className="font-black text-xl mb-2"
+          style={{ fontFamily: "var(--font-outfit, sans-serif)", color: C.text }}>
+          Hi. I'm NOVA.
         </h3>
         <p className="text-sm leading-relaxed" style={{ color: C.textMid, maxWidth: 280, margin: "0 auto" }}>
-          Your private AI wellness companion. Share how you feel, ask about your health, or let me check in on you.
+          Ask me anything about your health — a symptom you're noticing, a report you don't understand,
+          a medication you want to know more about, or just how you're doing.
+        </p>
+        <p className="text-sm leading-relaxed mt-3" style={{ color: C.textMid, maxWidth: 280, margin: "12px auto 0" }}>
+          I'm not a doctor, but I know enough to help you ask better questions of the ones who are.
+        </p>
+        <p className="text-base font-black mt-5" style={{ color: C.text }}>
+          What's on your mind?
         </p>
       </div>
 
-      {/* Suggestion chips */}
+      {/* ADDED — suggestions pre-fill input, not send directly */}
       <div className="flex flex-wrap gap-2 justify-center px-4">
-        {SUGGESTIONS.map((s) => (
+        {suggestions.map(s => (
           <motion.button key={s.text}
             whileHover={{ scale: 1.03, y: -1 }} whileTap={{ scale: 0.96 }}
-            onClick={() => onSuggest(s.text)}
+            onClick={() => onPrefill(s.text)}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl text-xs font-semibold transition-all"
             style={{ background: "#EEF2FF", color: "#4338CA", border: "1px solid #C7D2FE" }}>
-            <Sparkles size={10} />
+            <span>{s.icon}</span>
             {s.text}
           </motion.button>
         ))}
@@ -228,32 +379,114 @@ function EmptyState({ onSuggest }: { onSuggest: (text: string) => void }) {
   );
 }
 
+// ─── Scroll-to-bottom button ───────────────────────────────────────────────────
+// ADDED — appears when user scrolls up while new messages arrive
+function ScrollToBottomButton({ onClick }: { onClick: () => void }) {
+  return (
+    <motion.button
+      initial={{ opacity: 0, scale: 0.8 }}
+      animate={{ opacity: 1, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.8 }}
+      whileTap={{ scale: 0.92 }}
+      onClick={onClick}
+      className="absolute bottom-4 right-4 w-9 h-9 rounded-full flex items-center justify-center shadow-lg z-10"
+      style={{
+        background: C.indigo,
+        boxShadow: "0 4px 16px rgba(91,94,244,0.40)",
+      }}>
+      <ChevronDown size={16} color="white" />
+    </motion.button>
+  );
+}
+
+// ─── Voice transcript preview ──────────────────────────────────────────────────
+// ADDED — shows live transcript above input so user can review before sending
+function VoiceTranscriptPreview({ transcript }: { transcript: string }) {
+  if (!transcript.trim()) return null;
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+      className="mb-2 px-4 py-2.5 rounded-2xl text-xs leading-relaxed"
+      style={{ background: "#FEF3C7", border: "1px solid #FDE68A", color: "#92400E" }}>
+      <span className="font-black text-[9px] uppercase tracking-widest block mb-1" style={{ color: "#B45309" }}>
+        Listening…
+      </span>
+      {transcript}
+    </motion.div>
+  );
+}
+
 // ─── Main ChatPanel ────────────────────────────────────────────────────────────
-export function ChatPanel() {
-  const { messages, isTyping, sendMessage, clearChat, crisisAlert, dismissCrisis, submitFeedback, chatLanguage, setChatLanguage } = useChat();
+export function ChatPanel({ prefill, onPrefillConsumed }: {
+  prefill?: string;
+  onPrefillConsumed?: () => void;
+}) {
+  const {
+    messages, isTyping, sendMessage, clearChat,
+    crisisAlert, earlyWarning, dismissCrisis,
+    submitFeedback, chatLanguage, setChatLanguage,
+  } = useChat();
   const { emotion } = useEmotion();
   const { supported: ttsSupported, ttsEnabled, setTtsEnabled, speakingId, speakMessage, stopSpeaking } = useNovaTts(chatLanguage);
-  const { isListening, getFullTranscript, resetTranscript, startListening, stopListening, isSupportedDevice: isVoiceSupported } = useVoiceInput(chatLanguage);
+  const {
+    isListening, getFullTranscript, resetTranscript,
+    startListening, stopListening, isSupportedDevice: isVoiceSupported,
+  } = useVoiceInput(chatLanguage);
+
   const [input, setInput] = useState("");
   const [inputFocused, setInputFocused] = useState(false);
   const [langOpen, setLangOpen] = useState(false);
+  // ADDED — scroll tracking for scroll-to-bottom button
+  const [showScrollBtn, setShowScrollBtn] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const prevTypingRef = useRef(false);
   const lastAutoSpokenRef = useRef<string | null>(null);
+  const isUserScrolledUpRef = useRef(false);
 
+  // ADDED — inject prefill from JournalPanel or other tabs
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (prefill) {
+      setInput(prefill);
+      onPrefillConsumed?.();
+      // Focus textarea
+      setTimeout(() => {
+        const ta = document.querySelector<HTMLTextAreaElement>("textarea[data-chat]");
+        ta?.focus();
+      }, 100);
+    }
+  }, [prefill, onPrefillConsumed]);
+
+  // ADDED — track scroll position to show/hide scroll-to-bottom button
+  const handleScroll = useCallback(() => {
+    const el = scrollContainerRef.current;
+    if (!el) return;
+    const distFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    const scrolledUp = distFromBottom > 80;
+    isUserScrolledUpRef.current = scrolledUp;
+    setShowScrollBtn(scrolledUp);
+  }, []);
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+    messagesEndRef.current?.scrollIntoView({ behavior });
+    setShowScrollBtn(false);
+  }, []);
+
+  // Auto-scroll when new messages arrive — only if user isn't scrolled up
+  useEffect(() => {
+    if (!isUserScrolledUpRef.current) {
+      scrollToBottom();
+    } else {
+      // Show scroll button to alert user
+      setShowScrollBtn(true);
+    }
   }, [messages, isTyping]);
 
   // Auto-read NOVA replies when TTS is enabled
   useEffect(() => {
     if (prevTypingRef.current && !isTyping && ttsEnabled && ttsSupported) {
       const last = messages[messages.length - 1];
-      if (
-        last?.role === "assistant"
-        && last.content.trim()
-        && last.id !== lastAutoSpokenRef.current
-      ) {
+      if (last?.role === "assistant" && last.content.trim() && last.id !== lastAutoSpokenRef.current) {
         lastAutoSpokenRef.current = last.id;
         speakMessage(last.id, last.content);
       }
@@ -267,22 +500,19 @@ export function ChatPanel() {
     clearChat();
   };
 
+  // ADDED — voice: show transcript preview; on stop, merge into input
+  const liveTranscript = isListening ? getFullTranscript() : "";
+
   const handleVoiceInput = async () => {
     if (!isVoiceSupported) return;
-
     if (isListening) {
-      // Stop listening and add transcribed text to input
       stopListening();
       const voiceText = getFullTranscript().trim();
       if (voiceText) {
-        setInput((prev) => {
-          const combined = prev.trim() ? `${prev} ${voiceText}` : voiceText;
-          return combined;
-        });
+        setInput(prev => prev.trim() ? `${prev} ${voiceText}` : voiceText);
       }
       resetTranscript();
     } else {
-      // Start listening
       startListening();
     }
   };
@@ -291,6 +521,7 @@ export function ChatPanel() {
     const text = input.trim();
     if (!text || isTyping) return;
     setInput("");
+    isUserScrolledUpRef.current = false;
     await sendMessage(text, emotion);
   };
 
@@ -298,12 +529,22 @@ export function ChatPanel() {
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
+  // ADDED — auto-grow textarea up to 5 rows
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    ta.style.height = "auto";
+    ta.style.height = `${Math.min(ta.scrollHeight, 120)}px`;
+  }, [input]);
+
   const isEmpty = messages.length <= 1;
+  const suggestions = buildSuggestions(new Date().getHours());
 
   return (
     <div className="flex flex-col h-full" style={{ minHeight: 0 }}>
 
-      {/* ── NOVA header card ─────────────────────────────────────────────── */}
+      {/* ── NOVA header card ── */}
       <div className="rounded-3xl p-4 mb-3 flex items-center justify-between flex-shrink-0"
         style={{ background: C.surface, border: `1px solid ${C.border}` }}>
         <div className="flex items-center gap-3">
@@ -312,7 +553,6 @@ export function ChatPanel() {
               style={{ background: "#EEF2FF", border: "1px solid #C7D2FE" }}>
               <img src={LOGO_URL} alt="NOVA" className="w-7 h-7 object-contain nova-idle" />
             </div>
-            {/* Online dot */}
             <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2"
               style={{ background: "#16A34A", boxShadow: "0 0 8px rgba(22,163,74,0.50)", borderColor: C.surface }} />
           </div>
@@ -326,12 +566,11 @@ export function ChatPanel() {
           <div className="relative">
             <motion.button
               whileTap={{ scale: 0.9 }}
-              onClick={() => setLangOpen((o) => !o)}
+              onClick={() => setLangOpen(o => !o)}
               className="h-8 px-2.5 rounded-xl flex items-center gap-1.5 text-[10px] font-bold transition-all"
-              style={{ color: C.textMid, border: `1px solid ${C.border}`, background: langOpen ? "#EEF2FF" : C.surface }}
-              title="Chat language">
+              style={{ color: C.textMid, border: `1px solid ${C.border}`, background: langOpen ? "#EEF2FF" : C.surface }}>
               <Languages size={12} />
-              {CHAT_LANGUAGES.find((l) => l.code === chatLanguage)?.nativeLabel.slice(0, 6) || "Auto"}
+              {CHAT_LANGUAGES.find(l => l.code === chatLanguage)?.nativeLabel.slice(0, 6) || "Auto"}
             </motion.button>
             <AnimatePresence>
               {langOpen && (
@@ -343,9 +582,8 @@ export function ChatPanel() {
                     exit={{ opacity: 0, y: 4, scale: 0.96 }}
                     className="absolute right-0 top-full mt-1.5 z-50 rounded-2xl py-1.5 shadow-xl overflow-hidden min-w-[148px]"
                     style={{ background: C.surface, border: `1px solid ${C.border}` }}>
-                    {CHAT_LANGUAGES.map((lang) => (
-                      <button
-                        key={lang.code}
+                    {CHAT_LANGUAGES.map(lang => (
+                      <button key={lang.code}
                         onClick={() => { setChatLanguage(lang.code); setLangOpen(false); }}
                         className="w-full px-3 py-2 text-left text-[11px] font-semibold flex items-center justify-between gap-2 hover:bg-indigo-50 transition-colors"
                         style={{
@@ -366,19 +604,14 @@ export function ChatPanel() {
 
           {/* TTS toggle */}
           {ttsSupported && (
-            <motion.button
-              whileTap={{ scale: 0.9 }}
-              onClick={() => {
-                if (ttsEnabled) stopSpeaking();
-                setTtsEnabled(!ttsEnabled);
-              }}
+            <motion.button whileTap={{ scale: 0.9 }}
+              onClick={() => { if (ttsEnabled) stopSpeaking(); setTtsEnabled(!ttsEnabled); }}
               className="w-8 h-8 rounded-xl flex items-center justify-center transition-all"
               style={{
                 color: ttsEnabled ? C.indigoDark : C.textSoft,
                 border: `1px solid ${ttsEnabled ? "#C7D2FE" : C.border}`,
                 background: ttsEnabled ? "#EEF2FF" : C.surface,
-              }}
-              title={ttsEnabled ? "Auto-read ON — tap to mute" : "Enable text-to-speech"}>
+              }}>
               {ttsEnabled ? <Volume2 size={13} /> : <VolumeX size={13} />}
             </motion.button>
           )}
@@ -397,18 +630,25 @@ export function ChatPanel() {
         </div>
       </div>
 
-      {/* ── Crisis banner ─────────────────────────────────────────────────── */}
+      {/* ── Crisis / warning banners ── */}
       <AnimatePresence>
         {crisisAlert && !crisisAlert.acknowledged && <CrisisBanner onDismiss={dismissCrisis} />}
+        {earlyWarning?.level && earlyWarning.level !== "none" && !crisisAlert && (
+          <EarlyWarningBanner level={earlyWarning.level} onTalk={text => sendMessage(text, emotion)} />
+        )}
       </AnimatePresence>
 
-      {/* ── Messages area ─────────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto pb-2 scrollbar-hide relative">
+      {/* ── Messages area ── */}
+      <div
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 overflow-y-auto pb-2 scrollbar-hide relative">
         {isEmpty ? (
-          <EmptyState onSuggest={(text) => sendMessage(text, emotion)} />
+          // ADDED — empty state pre-fills input instead of sending
+          <EmptyState onPrefill={text => setInput(text)} />
         ) : (
           <div className="space-y-4 pr-1">
-            {messages.map((msg) => (
+            {messages.map(msg => (
               <MessageBubble
                 key={msg.id}
                 msg={msg}
@@ -422,26 +662,34 @@ export function ChatPanel() {
             <div ref={messagesEndRef} />
           </div>
         )}
+
+        {/* ADDED — scroll to bottom button */}
+        <AnimatePresence>
+          {showScrollBtn && (
+            <ScrollToBottomButton onClick={() => scrollToBottom()} />
+          )}
+        </AnimatePresence>
       </div>
 
-      {/* ── Suggestion chips (when messages exist) ────────────────────────── */}
+      {/* ── Suggestion chips (early conversation) ── */}
       {!isEmpty && messages.length <= 3 && (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
           className="flex gap-2 flex-wrap mb-3 flex-shrink-0">
-          {SUGGESTIONS.slice(0, 3).map((s) => (
+          {/* ADDED — chips pre-fill input, not send directly */}
+          {suggestions.slice(0, 3).map(s => (
             <motion.button key={s.text} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.97 }}
-              onClick={() => sendMessage(s.text, emotion)}
+              onClick={() => setInput(s.text)}
               className="flex items-center gap-1.5 text-[11px] px-3 py-2 rounded-2xl transition-all font-semibold"
               style={{ background: "#EEF2FF", color: "#4338CA", border: "1px solid #C7D2FE" }}>
-              <Sparkles size={9} /> {s.text}
+              <span>{s.icon}</span> {s.text}
             </motion.button>
           ))}
         </motion.div>
       )}
 
-      {/* ── Input bar — with ambient glow when focused ────────────────────── */}
+      {/* ── Input area ── */}
       <div className="flex-shrink-0 relative">
-        {/* Ambient glow behind input */}
+        {/* Ambient glow */}
         <AnimatePresence>
           {(inputFocused || isListening) && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -450,8 +698,15 @@ export function ChatPanel() {
                 background: isListening
                   ? "radial-gradient(ellipse 90% 60% at 50% 100%, rgba(239,68,68,0.15) 0%, transparent 70%)"
                   : "radial-gradient(ellipse 90% 60% at 50% 100%, rgba(91,94,244,0.18) 0%, transparent 70%)",
-                filter: "blur(12px)"
+                filter: "blur(12px)",
               }} />
+          )}
+        </AnimatePresence>
+
+        {/* ADDED — voice transcript preview above input */}
+        <AnimatePresence>
+          {isListening && liveTranscript && (
+            <VoiceTranscriptPreview transcript={liveTranscript} />
           )}
         </AnimatePresence>
 
@@ -464,16 +719,19 @@ export function ChatPanel() {
               : inputFocused ? "0 0 0 3px rgba(91,94,244,0.10)" : "none",
             transition: "border-color 0.2s, box-shadow 0.2s",
           }}>
+          {/* ADDED — auto-growing textarea */}
           <textarea
+            ref={textareaRef}
+            data-chat
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={e => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             onFocus={() => setInputFocused(true)}
             onBlur={() => setInputFocused(false)}
-            placeholder="Share how you&apos;re feeling, or ask a health question…"
+            placeholder="Share how you're feeling, or ask a health question…"
             rows={1}
-            className="flex-1 bg-transparent text-sm outline-none resize-none max-h-32 leading-relaxed"
-            style={{ color: C.text, minHeight: 36, caretColor: C.indigoLight }}
+            className="flex-1 bg-transparent text-sm outline-none resize-none leading-relaxed"
+            style={{ color: C.text, minHeight: 36, maxHeight: 120, caretColor: C.indigoLight }}
           />
           {isVoiceSupported && (
             <motion.button
@@ -485,18 +743,14 @@ export function ChatPanel() {
                 background: isListening ? "rgba(239, 68, 68, 0.1)" : C.surface2,
                 border: `1.5px solid ${isListening ? "#EF4444" : C.border}`,
                 color: isListening ? "#DC2626" : C.textMid,
-              }}
-              title={isListening ? "Stop listening" : "Press to speak"}>
+              }}>
               {isListening ? <Mic size={14} /> : <MicOff size={14} />}
               {isListening && (
-                <>
-                  <motion.div
-                    animate={{ scale: [1, 1.5], opacity: [1, 0] }}
-                    transition={{ duration: 0.8, repeat: Infinity }}
-                    className="absolute inset-0 rounded-xl"
-                    style={{ border: "1.5px solid #EF4444" }}
-                  />
-                </>
+                <motion.div
+                  animate={{ scale: [1, 1.5], opacity: [1, 0] }}
+                  transition={{ duration: 0.8, repeat: Infinity }}
+                  className="absolute inset-0 rounded-xl"
+                  style={{ border: "1.5px solid #EF4444" }} />
               )}
             </motion.button>
           )}
@@ -518,6 +772,10 @@ export function ChatPanel() {
       </div>
 
       <p className="text-[10px] text-center mt-2 flex-shrink-0" style={{ color: C.textSoft }}>
+        <Shield size={10} className="inline mr-1 align-[-1px]" />
+        Conversations are private to your account.
+      </p>
+      <p className="text-[10px] text-center mt-1 flex-shrink-0" style={{ color: C.textSoft }}>
         NOVA provides wellness information only — not medical advice. In emergencies, call 112 or 108.
       </p>
     </div>

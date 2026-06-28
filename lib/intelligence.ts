@@ -1,5 +1,6 @@
 export type AnalysisResult = {
   type: string;
+  markers?: { name: string; value: number; unit?: string; status?: string }[];
   findings: string[];
   riskLevel: "low" | "medium" | "high";
   recommendations: string[];
@@ -25,6 +26,17 @@ function normalizeAnalysis(value: unknown): AnalysisResult {
 
   return {
     type: typeof data.type === "string" && data.type.trim() ? data.type : "Clinical Document Review",
+    markers: Array.isArray(data.markers)
+      ? data.markers
+          .map((marker: any) => ({
+            name: String(marker?.name || "").trim(),
+            value: Number(marker?.value),
+            unit: typeof marker?.unit === "string" ? marker.unit : undefined,
+            status: typeof marker?.status === "string" ? marker.status : undefined,
+          }))
+          .filter((marker) => marker.name && Number.isFinite(marker.value))
+          .slice(0, 24)
+      : [],
     findings: Array.isArray(data.findings) && data.findings.length
       ? data.findings.map(String).slice(0, 8)
       : ["NOVA could not identify concrete clinical findings from the provided text."],
@@ -119,6 +131,7 @@ ${trimmedText.slice(0, 12000)}
 Return only valid JSON with this exact shape:
 {
   "type": "short document/report type",
+  "markers": [{"name":"WBC","value":9.8,"unit":"10^3/uL","status":"normal/high/low if stated"}],
   "findings": ["specific observations from the document text"],
   "riskLevel": "low" | "medium" | "high",
   "recommendations": ["safe next steps and clinician follow-up guidance"],

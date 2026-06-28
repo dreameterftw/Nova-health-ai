@@ -1,347 +1,151 @@
-# NOVA - AI Health Intelligence Platform
+# 🪐 NOVA: Emotion-Aware Clinical Health Companion
 
-> Your private AI health companion — emotion-aware, medical-grade, always available.
+> **NOVA** is a production-ready, medical-grade personal health intelligence platform and companion. By combining localized edge emotion detection, automated laboratory diagnostics comparison, time-aware chat context grounding, and proactive mental-health safety triggers, NOVA bridges the gap between patient self-reports and professional clinical assessment.
 
-[![Production Ready](https://img.shields.io/badge/Production-Ready-success)](./PRODUCTION_READINESS_AUDIT.md)
-[![Next.js](https://img.shields.io/badge/Next.js-16.2.0-black)](https://nextjs.org/)
-[![Firebase](https://img.shields.io/badge/Firebase-12.12.0-orange)](https://firebase.google.com/)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.7.3-blue)](https://www.typescriptlang.org/)
-
----
-
-## 🌟 Features
-
-### 🧠 **NOVA - AI Companion**
-- Private, empathetic chat powered by Groq Cloud API (Llama 3)
-- Reads your medical reports and tracks medications
-- Adjusts tone based on your emotional state
-- Available 24/7 for wellness support
-
-### 📸 **Emotional Shutter**
-- One-button emotion detection using face-api.js
-- All processing happens locally on your device
-- No images uploaded - complete privacy
-- Adapts AI responses to your emotional state
-
-### 🏥 **Vision Vault**
-- Upload blood tests, prescriptions, or injury photos
-- OCR extraction of clinical markers
-- Flags anomalies and provides context
-- Grounds conversations in your real data
-
-### 🚨 **Smart SOS**
-- Real-time crisis detection in conversations
-- Instant alerts to Family Circle contacts
-- Direct access to crisis hotlines
-- Multi-level severity assessment
-
-### 💊 **Medicine Tracker**
-- Real-time medication schedule tracking
-- Gentle reminders during conversations
-- No intrusive notification alarms
-- Integrated with AI chat context
+[![Next.js 16 (Turbopack)](https://img.shields.io/badge/Next.js-16.2.0%20(Turbopack)-black?style=for-the-badge&logo=nextdotjs)](https://nextjs.org/)
+[![Firebase Suite](https://img.shields.io/badge/Firebase-Auth%20%7C%20Firestore%20%7C%20Storage-orange?style=for-the-badge&logo=firebase)](https://firebase.google.com/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7.3-blue?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
+[![Tailwind & Vanilla CSS](https://img.shields.io/badge/Styling-Tailwind%20%26%20CSS-teal?style=for-the-badge&logo=tailwindcss)](https://tailwindcss.com/)
 
 ---
 
-## 🚀 Quick Start
+## 🌟 Key Platform Pillars
 
-### Prerequisites
-- Node.js 18+ installed
-- Firebase project set up
-- Groq API key (get one free at [console.groq.com](https://console.groq.com))
+### 1. 🧠 Emotionally-Aware Chat & Multi-Lingual Interface (`ChatPanel`)
+* **Real-time Local Processing**: Integrates local face expression analysis (`face-api.js`) via the user's camera feed to adjust conversation style dynamically. 
+* **Voice-First Input & Speech Synthesis**: Direct speech-to-text input with live transcript previews, paired with natural, high-performance text-to-speech output.
+* **Contextual Suggestions**: Automatically generates time-of-day and state-aware suggestions (e.g. mindfulness help in the morning, wind-down exercises at night) which pre-fill the input area.
+* **Localization**: Full support for English, Hindi (हिन्दी), Marathi (मराठी), Bengali (বাংলা), Tamil (தமிழ்), and Telugu (తెలుగు).
 
-### Installation
+### 2. 📋 Comprehensive Medical Vault & Longitudinal Comparison (`UploadVault`)
+* **Diagnostics Parser**: Parses PDF, image, and text reports using LLM-backed diagnostics extraction, identifying markers, values, units, and ranges.
+* **Smart Compare**: Recognizes similar historical laboratory tests (e.g., Blood Panel, Lipid Panel) and generates a side-by-side longitudinal marker variation table.
+* **Clinician-Ready Dashboard**: Highlights stable, changed, and monitored markers with clear directional arrows (`up`, `down`, `flat`) alongside a clean summary.
+* **Context Synchronization**: Automatically updates whether a medical file has been discussed in chat, hiding notification badges once reviewed.
 
-```bash
-# Clone the repository
-git clone <your-repo-url>
-cd v0
+### 3. ⏱️ Unified Medication Management (`MedicineTracker`)
+* **Today / History / Management Subviews**: Users can log daily doses, record skips with reasons (e.g. side effects), and create schedules specifying dosages, frequencies, and target time periods (morning, evening, etc.).
+* **Dynamic Adherence Calculations**: Tracks weekly adherence ratios and injects gentle prompt-level suggestions if adherence falls below critical thresholds.
 
-# Install dependencies
-npm install
+### 4. 🚨 Smart SOS & Active Safety Triggers (`SOSOverlay`)
+* **Countdown Interruption**: 4-second delay before alert transmission allows users to abort accidental triggers.
+* **Silent Coordinate Appending**: Accesses browser geolocation to automatically construct and append precise Google Maps locations in panic messages.
+* **Proactive Contact Guards**: Alerts users immediately if their emergency Family Circle contacts are empty.
+* **Clinical Breathing Assistant**: A full interactive 4-7-8 breathing circle to help calm users down in high-panic moments.
 
-# Copy environment variables
-cp .env.example .env.local
-
-# Fill in your credentials in .env.local
-
-# Run development server
-npm run dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+### 5. 📉 HealthPulse & Early Warning Engine (`HealthPulse`)
+* **Frequency-Sorted Tags**: Symptoms are ordered dynamically based on the user's logging history.
+* **"Fine" Check-in Bypass**: Allows users to skip granular symptom tagging and record overall wellness quickly.
+* **Recharts Trend Bands**: Renders high/low historical wellness score zones on graphs.
+* **Double-layered Grace Period**: Multi-day streak tracking with a once-per-week grace period option.
+* **Dynamic Early Warning System (EWS)**: Background scripts monitor multi-day check-in gaps, low-wellness clusters, and high-risk distress signals to update EWS levels (`yellow`, `orange`, `red`).
 
 ---
 
-## 📁 Project Structure
+## 📁 System Architecture
 
 ```
 v0/
-├── app/                    # Next.js app directory
-│   ├── api/               # API routes
-│   │   └── chat/         # Chat API endpoint
-│   ├── auth/             # Authentication pages
-│   ├── consent/          # Consent flow
-│   ├── dashboard/        # Main dashboard
-│   ├── error.tsx         # Error boundary
-│   ├── loading.tsx       # Loading state
-│   ├── not-found.tsx     # 404 page
-│   ├── sitemap.ts        # SEO sitemap
-│   ├── manifest.ts       # PWA manifest
-│   └── layout.tsx        # Root layout
-├── components/            # React components
-│   ├── auth/             # Auth components
-│   ├── dashboard/        # Dashboard components
-│   ├── landing/          # Landing page
-│   └── ui/               # Reusable UI components
-├── contexts/              # React contexts
-│   ├── AuthContext.tsx   # Authentication state
-│   ├── ChatContext.tsx   # Chat state
-│   └── EmotionContext.tsx # Emotion state
-├── lib/                   # Utilities
-│   ├── firebase.ts       # Firebase config
-│   └── constants.ts      # App constants
-├── public/                # Static assets
-│   ├── logo.png          # App logo
-│   └── robots.txt        # SEO robots
-├── .env.local            # Environment variables (not in git)
-├── .env.example          # Environment template
-├── next.config.mjs       # Next.js configuration
-├── package.json          # Dependencies
-└── tsconfig.json         # TypeScript config
+├── app/
+│   ├── api/
+│   │   ├── chat/                  # Streamed, authenticated NDJSON LLM interface
+│   │   ├── cron/                  # Cron triggers (adherence & daily status)
+│   │   ├── daily-briefing/        # Dynamic daily observations & personalized actions
+│   │   ├── early-warning/         # Analyzes logs and sentiment to flag distress levels
+│   │   ├── health-graph/          # Graph profile updating & milestone tracking
+│   │   ├── health-pulse/          # LLM clinical summary briefing generator
+│   │   └── vault/                 # File validation, Storage upload, and comparison
+│   ├── dashboard/                 # Main Single-Page Application frame
+│   └── onboarding/                # Clinical questionnaire flow
+├── components/
+│   ├── dashboard/                 # Feature panels (ChatPanel, SOSOverlay, etc.)
+│   ├── onboarding/                # Step-by-step onboarding cards
+│   └── ui/                        # Premium animations & reusable design primitives
+├── contexts/
+│   ├── AuthContext.tsx            # Session states & Firestore profile listeners
+│   ├── ChatContext.tsx            # Live sync, feedback, & memory compilation
+│   └── EmotionContext.tsx         # Edge emotion states
+├── lib/
+│   ├── earlyWarning.ts            # Clinical warning logic
+│   ├── healthGraph.ts             # HealthGraph profile & prompt context builders
+│   ├── healthMemory.ts            # Graph database memory compilation
+│   └── intelligence.ts            # PDF text parsing & LLM document analysis
 ```
 
 ---
 
-## 🔧 Configuration
+## 🚀 Environment Configuration
 
-### Environment Variables
-
-Create `.env.local` with:
+Create a `.env.local` file in the root of the project with the following properties:
 
 ```env
-# Firebase (Required)
-NEXT_PUBLIC_FIREBASE_API_KEY=your_key
-NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your_domain
-NEXT_PUBLIC_FIREBASE_DATABASE_URL=https://your_project.firebasedatabase.app
-NEXT_PUBLIC_FIREBASE_PROJECT_ID=your_project
-NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your_bucket
-NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
-NEXT_PUBLIC_FIREBASE_APP_ID=your_app_id
+# ─── FIREBASE APP CONFIG (CLIENT-SIDE) ───
+NEXT_PUBLIC_FIREBASE_API_KEY=AIzaSy...
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-app.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_DATABASE_URL=https://your-app.firebaseio.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-app
+NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-app.appspot.com
+NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=1234567890
+NEXT_PUBLIC_FIREBASE_APP_ID=1:1234567890:web:abcdef123456
 
-# Firebase Admin / Server-only
-FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account", ... }
+# ─── FIREBASE ADMIN KEY (SERVER-SIDE ONLY) ───
+FIREBASE_SERVICE_ACCOUNT_JSON={"type":"service_account",...}
 
-# AI Configuration (Groq — primary)
-GROQ_API_KEY=your_groq_api_key
+# ─── PRIMARY INTEL PROVIDER (GROQ CLOUD) ───
+GROQ_API_KEY=gsk_...
 GROQ_MODEL=llama-3.3-70b-versatile
 
-# AI Configuration (OpenRouter — fallback)
-OPENROUTER_API_KEY=your_openrouter_api_key
-OPENROUTER_MODEL=meta-llama/llama-3.1-8b-instruct:free
+# ─── SECONDARY FALLBACK PROVIDER (OPENROUTER) ───
+OPENROUTER_API_KEY=sk-or-...
+OPENROUTER_MODEL=meta-llama/llama-3.1-8b-instruct
 
-# App Config
-NEXT_PUBLIC_SITE_URL=https://your-domain.com
-NEXT_PUBLIC_LOGO_URL=/logo.png
+# ─── TUNABLE SYSTEM LIMITS ───
+NOVA_BRIEFING_AI_TIMEOUT_MS=8000
+NOVA_BRIEFING_FORCE_COOLDOWN_MINS=15
+NOVA_EARLY_WARNING_STALE_MINS=60
+NOVA_VAULT_MAX_FILE_BYTES=20971520
+NOVA_VAULT_SIGNED_URL_TTL_DAYS=7
+NOVA_LLM_TEMPERATURE=0.7
+NOVA_LLM_TOP_P=0.88
+NOVA_LLM_MAX_TOKENS=768
+NOVA_LLM_TIMEOUT_MS=28000
+NOVA_MAX_MESSAGES_IN=40
+NOVA_MAX_BODY_BYTES=65536
 ```
-
-> Use `FIREBASE_SERVICE_ACCOUNT_JSON` for Vercel server-side access to Firebase Admin features. Keep this secret private and do not expose it in client bundles.
-
-### Firebase Setup
-
-1. Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com)
-2. Enable Authentication (Email/Password and Google)
-3. Create a Firestore database
-4. Deploy security rules from `firestore.rules`
-5. Copy your config to `.env.local`
-
-### Groq API Setup
-
-1. Go to [console.groq.com](https://console.groq.com)
-2. Create a free account and generate an API key
-3. Add the key to your `.env.local`:
-```env
-GROQ_API_KEY=gsk_your_key_here
-```
-
-> If you prefer OpenRouter instead, set `OPENROUTER_API_KEY` — the app will use whichever key is available (Groq takes priority).
 
 ---
 
-## 🏗️ Development
+## 🏗️ Local Development
 
-### Available Scripts
+1. **Install Dependencies**:
+   ```bash
+   npm install
+   ```
 
-```bash
-# Development server
-npm run dev
+2. **Run Dev Server**:
+   ```bash
+   npm run dev
+   ```
 
-# Production build
-npm run build
-
-# Start production server
-npm run start
-
-# Lint code
-npm run lint
-```
-
-### Code Quality
-
-- **TypeScript**: Strict mode enabled
-- **ESLint**: Configured for Next.js
-- **Prettier**: Code formatting (recommended)
-- **Husky**: Git hooks (optional)
+3. **Verify Build**:
+   ```bash
+   npm run build
+   ```
 
 ---
 
-## 🚀 Deployment
-
-### ✨ Live Deployment
-
-**Production Live**: https://nova-health-ai-five.vercel.app
-
-The app is deployed and ready to use!
-
-### Deploy to Vercel (Recommended)
+## ⚡ Deployment to Vercel
 
 ```bash
-# Install Vercel CLI
-npm i -g vercel
+# Install Vercel globally (if not already installed)
+npm install -g vercel
 
-# Deploy
+# Run Deployment
 vercel --prod
 ```
 
-Or connect your Git repository to Vercel for automatic deployments.
-
-### Environment Variables in Vercel
-
-1. Go to Project Settings → Environment Variables
-2. Add all variables from `.env.local`
-3. Ensure `FIREBASE_SERVICE_ACCOUNT_JSON` is set as a secret for your production deployment
-4. Set values for Production, Preview, and Development
-
-### Post-Deployment
-
-1. Test authentication flow
-2. Verify Firebase connection
-3. Verify Groq / OpenRouter API key is set in Vercel environment variables
-4. Test on mobile devices
-5. Monitor error rates
-
-See [DEPLOYMENT_GUIDE.md](./DEPLOYMENT_GUIDE.md) for detailed instructions.
+Configure all values from `.env.local` within your Vercel Dashboard under **Project Settings ➔ Environment Variables**.
 
 ---
 
-## 📊 Production Readiness
-
-### Status: ✅ READY
-
-- **Security**: 95/100 ⭐⭐⭐⭐⭐
-- **Performance**: 85/100 ⭐⭐⭐⭐
-- **Code Quality**: 95/100 ⭐⭐⭐⭐⭐
-- **Error Handling**: 90/100 ⭐⭐⭐⭐⭐
-
-See [PRODUCTION_READINESS_AUDIT.md](./PRODUCTION_READINESS_AUDIT.md) for full report.
-
----
-
-## 🔐 Security
-
-### Implemented
-- ✅ Real Firebase authentication
-- ✅ Firestore security rules
-- ✅ Environment variables for secrets
-- ✅ Security headers configured
-- ✅ XSS protection
-- ✅ CORS configuration
-- ✅ Input validation
-- ✅ Error boundaries
-
-### Best Practices
-- Never commit `.env.local`
-- Rotate API keys regularly
-- Monitor Firebase usage
-- Enable App Check in production
-- Use different projects for dev/prod
-
----
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**Build fails**:
-```bash
-rm -rf .next node_modules
-npm install
-npm run build
-```
-
-**Firebase connection error**:
-- Check environment variables
-- Verify Firebase project is active
-- Check security rules
-
-**AI chat not responding**:
-- Verify `GROQ_API_KEY` or `OPENROUTER_API_KEY` is set in your environment
-- Check API key validity at the provider's dashboard
-- Review Vercel deployment logs for 4xx/5xx errors from the LLM endpoint
-
-**Authentication not working**:
-- Enable Email/Password in Firebase Console
-- Configure Google OAuth (if using)
-- Clear browser cache
-
----
-
-## 📚 Documentation
-
-- [Deployment Guide](./DEPLOYMENT_GUIDE.md) - Complete deployment instructions
-- [Production Audit](./PRODUCTION_READINESS_AUDIT.md) - Security & quality audit
-- [Auth Fixes](./AUTHENTICATION_FIXES_COMPLETE.md) - Authentication implementation
-
----
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
----
-
-## 📄 License
-
-This project is proprietary and confidential.
-
----
-
-## 🙏 Acknowledgments
-
-- [Next.js](https://nextjs.org/) - React framework
-- [Firebase](https://firebase.google.com/) - Backend services
-- [Groq](https://groq.com/) - Cloud AI inference
-- [face-api.js](https://github.com/justadudewhohacks/face-api.js/) - Emotion detection
-- [Tailwind CSS](https://tailwindcss.com/) - Styling
-- [Framer Motion](https://www.framer.com/motion/) - Animations
-- [Lucide Icons](https://lucide.dev/) - Icons
-
----
-
-## 📞 Support
-
-For issues or questions:
-1. Check [Troubleshooting](#-troubleshooting) section
-2. Review documentation files
-3. Open an issue on GitHub
-4. Contact the development team
-
----
-
-**Built with ❤️ for mental health and wellness**
-
-🌟 Star this repo if you find it helpful!
+**Built with ❤️ for private, Clinical Health Intelligence.**

@@ -26,6 +26,11 @@ export interface UserProfile {
     version?: string;
   };
   familyCircle?: { name: string; phone: string; relation: string }[];
+  onboardingComplete?: boolean;
+  onboardingSkipped?: boolean;
+  ageRange?: string;
+  conditions?: string[];
+  goals?: string[];
   // Clinical Profile
   bloodGroup?: string;
   allergies?: string[];
@@ -314,12 +319,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [user]);
 
   const updateProfileData = useCallback(async (data: Partial<UserProfile>) => {
+    let nextProfile: UserProfile | null = null;
     setUser((prev) => {
       if (!prev) return prev;
       const updated = { ...prev, ...data };
+      nextProfile = updated;
       saveLocalProfile(updated);
       return updated;
     });
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      if (token && nextProfile) {
+        await fetch("/api/health-graph/profile", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(nextProfile),
+        });
+      }
+    } catch {
+      // Profile save succeeds even if the health graph sync is delayed.
+    }
     // Sync to Firestore is handled by the useEffect [user]
   }, []);
 

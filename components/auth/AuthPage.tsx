@@ -332,7 +332,7 @@ export function ConsentScreen() {
     }
 
     if (Object.values(savedConsents).every(Boolean)) {
-      router.replace("/dashboard");
+      router.replace(user.onboardingComplete || user.onboardingSkipped ? "/dashboard" : "/onboarding");
     }
   }, [authLoading, router, savedConsents, user]);
 
@@ -371,13 +371,13 @@ export function ConsentScreen() {
   ];
 
   const handleAccept = async () => {
-    if (!allConsented) return;
+    if (!allConsented || !user) return;
     setLoading(true);
     setError("");
 
     try {
       await updateConsent({ ...consents, timestamp: new Date(), version: "1.0" });
-      router.replace("/dashboard");
+      router.replace(user.onboardingComplete || user.onboardingSkipped ? "/dashboard" : "/onboarding");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Could not save your consent. Please try again.");
     } finally {
@@ -503,7 +503,7 @@ export function AuthPage({ initialView = "login" }: { initialView?: AuthView }) 
                              user.consent?.aiInteraction;
       
       if (hasAllConsents) {
-        router.push("/dashboard");
+        router.push(user.onboardingComplete || user.onboardingSkipped ? "/dashboard" : "/onboarding");
       } else {
         router.push("/consent");
       }

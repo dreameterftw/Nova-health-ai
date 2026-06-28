@@ -1,6 +1,8 @@
 import type { UserActivityContext } from "@/lib/userContext";
 import { formatUserContextForPrompt } from "@/lib/userContext";
 import { getLanguagePromptInstruction, type ChatLanguageCode } from "@/lib/chatLanguages";
+import type { HealthMemoryGraph } from "@/lib/healthMemory";
+import { formatHealthMemoryForPrompt } from "@/lib/healthMemory";
 type EmotionContext = {
   dominant?: string;
   stress?: number;
@@ -15,33 +17,156 @@ function formatPercent(value: unknown): string {
   return `${Math.round(Math.max(0, Math.min(1, value)) * 100)}%`;
 }
 
+function buildHealthPulseBlock(ctx: UserActivityContext | undefined): string {
+  if (!ctx) return "";
+
+  const lines: string[] = [];
+
+  if (ctx.todayPulse) {
+    const p = ctx.todayPulse;
+    const scoreLabel =
+      p.wellnessScore >= 8 ? "excellent" :
+      p.wellnessScore >= 6 ? "good" :
+      p.wellnessScore >= 4 ? "moderate" : "low";
+
+    lines.push("──────────────────────────────────────────────");
+    lines.push("HEALTHPULSE — TODAY'S CHECK-IN (self-reported, high accuracy)");
+    lines.push("──────────────────────────────────────────────");
+    lines.push(`Wellness Score: ${p.wellnessScore}/10 (${scoreLabel})`);
+
+    if (p.bodySymptoms.length) {
+      lines.push(`Body symptoms reported: ${p.bodySymptoms.join(", ")}`);
+    } else {
+      lines.push("Body: no symptoms reported");
+    }
+
+    if (p.mindSymptoms.length) {
+      lines.push(`Mind state reported: ${p.mindSymptoms.join(", ")}`);
+    } else {
+      lines.push("Mind: no symptoms reported");
+    }
+
+    if (p.note) {
+      lines.push(`User note: "${p.note}"`);
+    }
+
+    if (ctx.pulseStreak > 1) {
+      lines.push(`Check-in streak: ${ctx.pulseStreak} days — acknowledge their consistency warmly if relevant.`);
+    }
+
+    // Proactive pattern detection
+    if (p.wellnessScore <= 3) {
+      lines.push(
+        "⚠ SCORE ≤ 3: User is reporting very low wellness today. Open with extra warmth and gentleness. " +
+        "Do NOT immediately suggest exercises — first ask what's been going on."
+      );
+    }
+  }
+
+  if (ctx.recentPulses.length >= 3) {
+    const scores = ctx.recentPulses.map((p) => p.wellnessScore);
+    const avg = (scores.reduce((a, b) => a + b, 0) / scores.length).toFixed(1);
+    const consecutiveLow = scores.filter((s) => s <= 4).length;
+
+    lines.push(`HealthPulse 7-day average: ${avg}/10`);
+
+    if (consecutiveLow >= 3) {
+      lines.push(
+        `⚠ PATTERN DETECTED: ${consecutiveLow} of ${scores.length} recent check-ins scored ≤4. ` +
+        "User may be in a prolonged low period. Gently explore without being alarmist. " +
+        "If appropriate, mention that consistent low scores can be worth discussing with a doctor."
+      );
+    }
+
+    // Spot fatigue pattern
+    const fatigueDays = ctx.recentPulses.filter((p) =>
+      p.bodySymptoms.includes("fatigue")
+    ).length;
+    if (fatigueDays >= 3) {
+      lines.push(
+        `Fatigue reported on ${fatigueDays} of last ${ctx.recentPulses.length} days — ` +
+        "be aware this may be a pattern. Do NOT mention it unprompted unless user raises energy/tiredness."
+      );
+    }
+
+    // Spot anxiety pattern
+    const anxiousDays = ctx.recentPulses.filter((p) =>
+      p.mindSymptoms.includes("anxious")
+    ).length;
+    if (anxiousDays >= 3) {
+      lines.push(
+        `Anxiety reported on ${anxiousDays} of last ${ctx.recentPulses.length} days — ` +
+        "be extra gentle and grounding if user brings up stress or worry."
+      );
+    }
+  }
+
+  if (lines.length === 0) return "";
+  lines.push("──────────────────────────────────────────────");
+  return "\n" + lines.join("\n");
+}
+
 export function buildNovaSystemPrompt(
   userName: string | undefined,
   emotion: EmotionContext,
   userContext?: UserActivityContext,
   exchangeCount = 0,
-  language: ChatLanguageCode = "auto"
+  language: ChatLanguageCode = "auto",
+  healthMemory?: HealthMemoryGraph
 ): string {
   const name = userName || "Friend";
   const contextBlock = userContext
     ? formatUserContextForPrompt(userContext, userName)
     : "No additional activity context available.";
+  const healthPulseBlock = buildHealthPulseBlock(userContext);
+  const memoryBlock = healthMemory ? formatHealthMemoryForPrompt(healthMemory) : "";
 
   const settlingPhase = exchangeCount < 4;
 
-  return `You are NOVA, a private, compassionate, and highly skilled AI wellness companion and supportive therapist.
-You are NOT a generic chatbot — you are a warm, perceptive therapeutic guide. Your purpose is to provide emotional support, stress management, and mental well-being assistance, grounded in the Indian context (e.g. Yoga, mindfulness, Ayurveda, and culturally relevant wellness practices) where appropriate.
+  // Determine primary emotional signal — prefer HealthPulse (self-reported) over facial scan
+  const hasPulseToday = !!userContext?.todayPulse;
+  const pulseScore = userContext?.todayPulse?.wellnessScore;
+  const pulseBodySymptoms = userContext?.todayPulse?.bodySymptoms ?? [];
+  const pulseMindSymptoms = userContext?.todayPulse?.mindSymptoms ?? [];
 
-User Name: ${name}
-
-Current Bio-Emotional Signals (from on-device facial scan):
+  const primarySignalBlock = hasPulseToday
+    ? `Primary Wellness Signal (self-reported HealthPulse — highest reliability):
+- Wellness Score: ${pulseScore}/10
+- Body: ${pulseBodySymptoms.length ? pulseBodySymptoms.join(", ") : "clear"}
+- Mind: ${pulseMindSymptoms.length ? pulseMindSymptoms.join(", ") : "clear"}
+- Facial scan signals (secondary, lower priority): stress ${formatPercent(emotion.stress)}, joy ${formatPercent(emotion.joy)}, fatigue ${formatPercent(emotion.fatigue)}`
+    : `Current Bio-Emotional Signals (from on-device facial scan):
 - Dominant Emotion: ${emotion.dominant || "calm"}
 - Stress Level: ${formatPercent(emotion.stress)}
 - Sadness Level: ${formatPercent(emotion.sadness)}
 - Joy Level: ${formatPercent(emotion.joy)}
 - Fatigue Level: ${formatPercent(emotion.fatigue)}
-- Critical Alert: ${emotion.isCritical ? "YES — be extra gentle and check in immediately" : "No"}
+- Critical Alert: ${emotion.isCritical ? "YES — be extra gentle and check in immediately" : "No"}`;
 
+  return `You are NOVA — a personal health intelligence companion. You are not a doctor, and you never diagnose. You are not a generic chatbot. You remember useful context, notice patterns, and support the user without making decisions for them.
+
+Your voice is plain, warm, direct, and emotionally aware. Use short sentences. Avoid filler. Be honest about limits without over-disclaiming. Speak like a thoughtful health companion, not a medical textbook or customer service script.
+
+Concrete voice rules:
+- Never open with "Certainly!", "Of course!", "Great question!", or any hollow filler phrase.
+- Never say "I understand how you feel" — show it by reflecting back what they actually said.
+- Never use passive-aggressive positivity ("That's wonderful that you shared that!").
+- When you don't know something: "I'm not sure, but here's what this usually means..." — honest, not evasive.
+- When discussing medical markers or symptoms: plain English first, clinical term in parentheses if needed.
+- Use the user's health graph naturally. Let it shape your tone and questions, but do not recite private facts back unless they are directly relevant.
+- Adjust your emotional register using HealthPulse: lower scores need slower, gentler language; stronger scores can handle more momentum.
+- For sensitive topics, listen first, reflect what you heard, then ask one careful question. Only give crisis resources when there is a real safety risk.
+- When a user describes a symptom and asks what condition they have, explain a range of possible causes, recommend professional evaluation if the symptom is significant, and do not name a diagnosis as the answer.
+- When a user expresses distress or hopelessness, your first response must be a single warm acknowledgement followed by one open question. Do not introduce support resources until the second or third exchange unless the language is explicitly crisis-level.
+- Never diagnose, prescribe, or present yourself as a doctor.
+- End responses with ONE of: a gentle open question, a warm presence statement, or silence (no response needed). Never end with a directive or to-do list.
+
+User Name: ${name}
+
+${memoryBlock}
+
+${primarySignalBlock}
+${healthPulseBlock}
 ${contextBlock}
 
 ${getLanguagePromptInstruction(language)}

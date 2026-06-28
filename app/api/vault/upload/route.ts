@@ -1,22 +1,51 @@
-import { NextResponse } from 'next/server';
-import { Buffer } from 'buffer';
-import { getAdminAuth, getAdminDb, firebaseAdmin } from '@/lib/firebaseAdmin';
-import { analyzeMedicalDocument } from '@/lib/intelligence';
+import { NextResponse } from "next/server";
+import { Buffer } from "buffer";
+import { getAdminAuth, getAdminDb, firebaseAdmin } from "@/lib/firebaseAdmin";
+import { analyzeMedicalDocument } from "@/lib/intelligence";
+import { updateGraphFromVault } from "@/lib/healthGraph";
+import type { AnalysisResult } from "@/lib/intelligence";
+
+// ADDED — configurable limits
+const MAX_FILE_BYTES = parseInt(process.env.NOVA_VAULT_MAX_FILE_BYTES ?? String(20 * 1024 * 1024), 10); // 20 MB
+const SIGNED_URL_TTL_DAYS = parseInt(process.env.NOVA_VAULT_SIGNED_URL_TTL_DAYS ?? "7", 10);
+
+// ADDED — allowed MIME types and extensions
+const ALLOWED_MIME_PREFIXES = ["application/pdf", "image/", "text/"];
+const ALLOWED_EXTENSIONS = new Set(["pdf", "png", "jpg", "jpeg", "webp", "txt", "csv", "md", "json", "dcm"]);
+
+type Marker = { name: string; value: number; unit?: string; status?: string };
+type ReportComparison = {
+  currentId?: string;
+  previousId: string;
+  reportType: string;
+  currentDate: string;
+  previousDate: string;
+  rows: {
+    marker: string;
+    previous: number;
+    current: number;
+    unit?: string;
+    change: number;
+    direction: "up" | "down" | "flat";
+    status: string;
+  }[];
+  notTestedThisTime: string[];
+  interpretation: string;
+};
 
 function extractPdfTextBestEffort(buffer: Buffer): string {
-  const raw = buffer.toString('latin1');
+  const raw = buffer.toString("latin1");
   const literalStrings = [...raw.matchAll(/\(([^()]{3,})\)/g)]
-    .map((match) => match[1])
-    .join(' ');
+    .map((m) => m[1])
+    .join(" ");
   const normalized = literalStrings
-    .replace(/\\n|\\r/g, ' ')
-    .replace(/\\\(|\\\)/g, (value) => value.slice(1))
-    .replace(/\s+/g, ' ')
+    .replace(/\\n|\\r/g, " ")
+    .replace(/\\\(|\\\)/g, (v) => v.slice(1))
+    .replace(/\s+/g, " ")
     .trim();
-
   return normalized
-    ? `${normalized}\n\nNote: PDF text was extracted with a best-effort built-in parser. Scanned or compressed PDFs require OCR/PDF parsing for complete analysis.`
-    : '';
+    ? `${normalized}\n\nNote: PDF text was extracted with a best-effort built-in parser. Scanned or compressed PDFs require OCR for complete analysis.`
+    : "";
 }
 
 function extractDocumentText(buffer: Buffer, file: File, fileName: string): string {
@@ -24,92 +53,236 @@ function extractDocumentText(buffer: Buffer, file: File, fileName: string): stri
   const mime = file.type.toLowerCase();
 
   if (
-    mime.startsWith('text/') ||
-    mime.includes('json') ||
-    lowerName.endsWith('.txt') ||
-    lowerName.endsWith('.csv') ||
-    lowerName.endsWith('.md') ||
-    lowerName.endsWith('.json')
+    mime.startsWith("text/") || mime.includes("json") ||
+    lowerName.endsWith(".txt") || lowerName.endsWith(".csv") ||
+    lowerName.endsWith(".md") || lowerName.endsWith(".json")
   ) {
-    return buffer.toString('utf8');
+    return buffer.toString("utf8");
   }
-
-  if (mime === 'application/pdf' || lowerName.endsWith('.pdf')) {
+  if (mime === "application/pdf" || lowerName.endsWith(".pdf")) {
     return extractPdfTextBestEffort(buffer);
   }
+  if (mime.startsWith("image/")) {
+    return "Image upload received. OCR is not configured yet — NOVA cannot read text from this image.";
+  }
+  return "";
+}
 
-  if (mime.startsWith('image/')) {
-    return 'Image upload received. OCR is not configured yet, so NOVA cannot read text from this image. Add OCR or a vision model before relying on image-based report analysis.';
+function markerKey(name: string) {
+  return name.toLowerCase().replace(/[^a-z0-9]/g, "");
+}
+
+function formatUploadDate(value: unknown): string {
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  if (typeof value === "string") return value.slice(0, 10);
+  if (value && typeof value === "object" && "toDate" in value && typeof (value as any).toDate === "function") {
+    return (value as any).toDate().toISOString().slice(0, 10);
+  }
+  return new Date().toISOString().slice(0, 10);
+}
+
+function buildComparison(
+  current: AnalysisResult,
+  previousRecord: FirebaseFirestore.DocumentData
+): ReportComparison | null {
+  const currentMarkers = current.markers ?? [];
+  const previous = previousRecord.result as AnalysisResult | undefined;
+  const previousMarkers = previous?.markers ?? [];
+  if (currentMarkers.length === 0 || previousMarkers.length === 0) return null;
+
+  const previousByKey = new Map(previousMarkers.map((m) => [markerKey(m.name), m]));
+  const currentKeys = new Set(currentMarkers.map((m) => markerKey(m.name)));
+  const rows: ReportComparison["rows"] = [];
+
+  for (const marker of currentMarkers) {
+    const prev = previousByKey.get(markerKey(marker.name));
+    if (!prev) continue;
+    const change = Number((marker.value - prev.value).toFixed(2));
+    const direction = Math.abs(change) < 0.01 ? "flat" : change > 0 ? "up" : "down";
+    const magnitude = Math.abs(change);
+    const status =
+      marker.status?.toLowerCase().includes("high") || marker.status?.toLowerCase().includes("low")
+        ? "Monitor"
+        : magnitude > Math.max(1, Math.abs(prev.value) * 0.2)
+          ? "Changed"
+          : "Stable";
+    rows.push({ marker: marker.name, previous: prev.value, current: marker.value, unit: marker.unit || prev.unit, change, direction, status });
   }
 
-  return '';
+  if (!rows.length) return null;
+
+  const notTestedThisTime = previousMarkers
+    .filter((m) => !currentKeys.has(markerKey(m.name)))
+    .map((m) => m.name)
+    .slice(0, 8);
+
+  const watchRows = rows.filter((r) => r.status !== "Stable").slice(0, 3);
+  const improvedRows = rows.filter((r) => r.status === "Stable" && r.direction !== "flat").slice(0, 2);
+  const interpretation = [
+    watchRows.length
+      ? `NOVA noticed meaningful movement in ${watchRows.map((r) => r.marker).join(", ")}. These changes are worth discussing with your doctor.`
+      : `NOVA did not find major movement across shared markers. Values look broadly stable.`,
+    improvedRows.length
+      ? `Some markers shifted modestly (${improvedRows.map((r) => r.marker).join(", ")}), but direction alone is not diagnostic.`
+      : "",
+    "This analysis is for informational context only. Always discuss results with your doctor.",
+  ].filter(Boolean).join(" ");
+
+  return {
+    previousId: previousRecord.id,
+    reportType: current.type,
+    currentDate: new Date().toISOString().slice(0, 10),
+    previousDate: formatUploadDate(previousRecord.createdAt),
+    rows,
+    notTestedThisTime,
+    interpretation,
+  };
 }
 
 export async function POST(req: Request) {
   try {
-    const authHeader = req.headers.get('authorization') || '';
-    const idToken = authHeader.startsWith('Bearer ') ? authHeader.replace('Bearer ', '') : authHeader;
-
+    // FIXED — consistent token extraction
+    const authHeader = req.headers.get("authorization") || "";
+    const idToken = authHeader.startsWith("Bearer ") ? authHeader.slice(7).trim() : authHeader;
     if (!idToken) {
-      return NextResponse.json({ error: 'Authentication token missing.' }, { status: 401 });
+      return NextResponse.json({ error: "Authentication token missing." }, { status: 401 });
     }
 
     let decodedToken;
     try {
       decodedToken = await getAdminAuth().verifyIdToken(idToken);
-    } catch (error) {
-      return NextResponse.json({ error: 'Invalid authentication token.' }, { status: 401 });
+    } catch {
+      return NextResponse.json({ error: "Invalid authentication token." }, { status: 401 });
     }
 
     const userId = decodedToken.uid;
     const formData = await req.formData();
-    const file = formData.get('file') as File | null;
+    const file = formData.get("file") as File | null;
 
     if (!file) {
-      return NextResponse.json({ error: 'No file provided.' }, { status: 400 });
+      return NextResponse.json({ error: "No file provided." }, { status: 400 });
     }
 
-    const fileName = formData.get('fileName')?.toString() || file.name || `upload-${Date.now()}`;
-    const fileType = formData.get('type')?.toString() || 'medical-document';
-    const ext = fileName.split('.').pop()?.toLowerCase() || 'pdf';
-    const filePath = `medicalVault/${userId}/${Date.now()}.${ext}`;
+    // ADDED — file size check before buffering
+    if (file.size > MAX_FILE_BYTES) {
+      return NextResponse.json(
+        { error: `File too large. Maximum size is ${Math.round(MAX_FILE_BYTES / 1024 / 1024)} MB.` },
+        { status: 413 }
+      );
+    }
+
+    const fileName = formData.get("fileName")?.toString() || file.name || `upload-${Date.now()}`;
+    const fileType = formData.get("type")?.toString() || "medical-document";
+    const ext = fileName.split(".").pop()?.toLowerCase() || "pdf";
+
+    // ADDED — file type allowlist
+    const mimeAllowed = ALLOWED_MIME_PREFIXES.some((prefix) => file.type.toLowerCase().startsWith(prefix));
+    const extAllowed = ALLOWED_EXTENSIONS.has(ext);
+    if (!mimeAllowed || !extAllowed) {
+      return NextResponse.json(
+        { error: "File type not supported. Please upload a PDF, image, or text document." },
+        { status: 415 }
+      );
+    }
+
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     const documentText = extractDocumentText(buffer, file, fileName);
 
+    // ADDED — skip LLM analysis for files with no extractable text
+    let analysis: AnalysisResult;
+    if (!documentText.trim() || documentText.startsWith("Image upload received")) {
+      analysis = {
+        type: fileType,
+        findings: ["No text could be extracted from this file. NOVA cannot analyse it automatically."],
+        riskLevel: "low",
+        recommendations: ["Upload a text-based PDF or share the relevant values in chat."],
+        markers: [],
+      };
+    } else {
+      analysis = await analyzeMedicalDocument(documentText, fileName);
+    }
+
+    const filePath = `medicalVault/${userId}/${Date.now()}.${ext}`;
     const bucket = firebaseAdmin.storage().bucket();
     const storageFile = bucket.file(filePath);
 
     await storageFile.save(buffer, {
-      contentType: file.type || 'application/octet-stream',
+      contentType: file.type || "application/octet-stream",
       resumable: false,
     });
 
-    const expiresAt = Date.now() + 7 * 24 * 60 * 60 * 1000; // 7 days
-    const [signedUrl] = await storageFile.getSignedUrl({
-      action: 'read',
-      expires: expiresAt,
-    });
+    // ADDED — env-configurable signed URL TTL
+    const expiresAt = Date.now() + SIGNED_URL_TTL_DAYS * 24 * 60 * 60 * 1000;
+    const [signedUrl] = await storageFile.getSignedUrl({ action: "read", expires: expiresAt });
 
-    const analysis = await analyzeMedicalDocument(documentText, fileName);
+    // ADDED — try previous-report comparison; catch index errors gracefully
+    let previousDoc: FirebaseFirestore.QueryDocumentSnapshot | null = null;
+    try {
+      const previousSnapshot = await getAdminDb()
+        .collection("medicalVault")
+        .where("userId", "==", userId)
+        .where("result.type", "==", analysis.type)
+        .orderBy("createdAt", "desc")
+        .limit(1)
+        .get();
+      previousDoc = previousSnapshot.empty ? null : previousSnapshot.docs[0];
+    } catch {
+      // Composite index may not exist yet — comparison skipped gracefully
+      previousDoc = null;
+    }
+
+    const comparison = previousDoc
+      ? buildComparison(analysis, { id: previousDoc.id, ...previousDoc.data() })
+      : null;
+
+    // ADDED — initialise discussedWithNOVA: false so dashboard filter works
     const record = {
       userId,
       name: fileName,
       size: `${(buffer.byteLength / (1024 * 1024)).toFixed(1)} MB`,
       type: fileType,
-      status: 'complete',
+      status: "complete",
       result: analysis,
+      comparison,
       ext,
       url: signedUrl,
       storagePath: filePath,
       createdAt: new Date(),
+      // ADDED — required by DashboardHome discussedWithNOVA filter (P0.2)
+      discussedWithNOVA: false,
     };
 
-    const docRef = await getAdminDb().collection('medicalVault').add(record);
+    const docRef = await getAdminDb().collection("medicalVault").add(record);
 
-    return NextResponse.json({ id: docRef.id, ...record });
+    if (comparison) {
+      await docRef.update({ "comparison.currentId": docRef.id }).catch(() => { });
+    }
+
+    await updateGraphFromVault(userId, {
+      fileName,
+      type: analysis.type || fileType,
+      riskLevel: analysis.riskLevel,
+      findings: Array.isArray(analysis.findings) ? analysis.findings : [],
+      uploadedAt: record.createdAt.toISOString(),
+    }).catch(() => { });
+
+    // FIXED — return only client-safe fields, not storagePath or internal metadata
+    return NextResponse.json({
+      id: docRef.id,
+      name: record.name,
+      size: record.size,
+      type: record.type,
+      status: record.status,
+      result: record.result,
+      comparison: comparison ? { ...comparison, currentId: docRef.id } : null,
+      ext: record.ext,
+      url: record.url,
+      createdAt: record.createdAt.toISOString(),
+      discussedWithNOVA: false,
+    });
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown server error';
+    const message = error instanceof Error ? error.message : "Unknown server error";
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }

@@ -13,6 +13,81 @@ export type MoodLog = {
   note?: string;
 };
 
+// ── HealthPulse types ────────────────────────────────────────────────────────
+
+export type BodySymptom =
+  | "fatigue"
+  | "headache"
+  | "nausea"
+  | "pain"
+  | "joint_pain"
+  | "back_pain"
+  | "shortness_of_breath"
+  | "dizziness"
+  | "fever"
+  | "chest_tightness"
+  | "stomach_ache"
+  | "muscle_ache";
+
+export type MindSymptom =
+  | "anxious"
+  | "stressed"
+  | "low"
+  | "tired"
+  | "foggy"
+  | "calm"
+  | "irritable"
+  | "overwhelmed"
+  | "hopeful"
+  | "restless";
+
+export type HealthPulseLog = {
+  id?: string;
+  date: string; // ISO date "YYYY-MM-DD"
+  wellnessScore: number; // 1–10
+  bodySymptoms: BodySymptom[];
+  mindSymptoms: MindSymptom[];
+  symptomIntensity?: Record<string, "mild" | "moderate" | "severe">;
+  note?: string;
+  createdAt: string; // ISO datetime
+};
+
+export type HealthPulseInsight = {
+  type: "pattern" | "streak" | "correlation" | "low_score";
+  message: string;
+  date: string;
+};
+
+// ── Medication types ─────────────────────────────────────────────────────────
+
+export type MedicationFrequency = "once_daily" | "twice_daily" | "three_times" | "as_needed" | "weekly";
+
+export type MedicationTime = "morning" | "afternoon" | "evening" | "night" | "with_meal";
+
+export type MedicationSchedule = {
+  id?: string;
+  name: string;
+  dosage: string;           // e.g. "500mg", "1 tablet"
+  frequency: MedicationFrequency;
+  times: MedicationTime[];  // which parts of day
+  notes?: string;
+  startDate: string;        // ISO date
+  active: boolean;
+  color?: string;           // for UI pill badge
+};
+
+export type MedicationLog = {
+  id?: string;
+  scheduleId: string;
+  medicationName: string;
+  scheduledTime: MedicationTime;
+  date: string;             // ISO date "YYYY-MM-DD"
+  takenAt?: string;         // ISO datetime when actually taken
+  skipped?: boolean;
+  skipReason?: string;
+  createdAt: string;
+};
+
 export type JournalEntry = {
   id?: string;
   type: JournalType;
@@ -54,6 +129,13 @@ export type UserActivityContext = {
     fatigue?: number;
   };
   emotionHistory?: EmotionState[];
+  // HealthPulse
+  todayPulse?: HealthPulseLog;
+  recentPulses: HealthPulseLog[];
+  pulseStreak: number; // consecutive days checked in
+  medicationSchedules: MedicationSchedule[];
+  todayMedLogs: MedicationLog[];
+  medicationAdherence7d?: number; // 0–1 ratio
 };
 
 export function buildUserActivityContext(
@@ -65,11 +147,33 @@ export function buildUserActivityContext(
     vaultSummaries?: VaultSummary[];
     currentEmotion?: EmotionState | null;
     emotionHistory?: EmotionState[];
+    healthPulseLogs?: HealthPulseLog[];
+    medicationSchedules?: MedicationSchedule[];
+    medicationLogs?: MedicationLog[];
   } = {}
 ): UserActivityContext {
   const today = new Date().toISOString().slice(0, 10);
   const moodLogs = options.moodLogs ?? [];
   const journalEntries = options.journalEntries ?? [];
+  const pulseLogs = options.healthPulseLogs ?? [];
+
+  // Calculate streak from consecutive days (newest first assumed)
+  const sortedPulses = [...pulseLogs].sort(
+    (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+  );
+  let pulseStreak = 0;
+  {
+    const cursor = new Date();
+    for (const pulse of sortedPulses) {
+      const expected = cursor.toISOString().slice(0, 10);
+      if (pulse.date === expected) {
+        pulseStreak++;
+        cursor.setDate(cursor.getDate() - 1);
+      } else {
+        break;
+      }
+    }
+  }
 
   return {
     isReturning: (options.messageCount ?? 0) > 0,
@@ -99,6 +203,21 @@ export function buildUserActivityContext(
         }
       : undefined,
     emotionHistory: options.emotionHistory?.slice(0, 5),
+    todayPulse: sortedPulses.find((p) => p.date === today),
+    recentPulses: sortedPulses.slice(0, 7),
+    pulseStreak,
+    medicationSchedules: options.medicationSchedules ?? [],
+    todayMedLogs: (options.medicationLogs ?? []).filter(l => l.date === today),
+    medicationAdherence7d: (() => {
+      const logs = options.medicationLogs ?? [];
+      const last7 = logs.filter(l => {
+        const diff = (Date.now() - new Date(l.date).getTime()) / 86400000;
+        return diff <= 7;
+      });
+      if (!last7.length) return undefined;
+      const taken = last7.filter(l => l.takenAt && !l.skipped).length;
+      return parseFloat((taken / last7.length).toFixed(2));
+    })(),
   };
 }
 
@@ -156,6 +275,70 @@ export function formatUserContextForPrompt(ctx: UserActivityContext, userName?: 
     );
   }
 
+  // ── HealthPulse ──────────────────────────────────────────────────────────
+  if (ctx.todayPulse) {
+    const p = ctx.todayPulse;
+    const body = p.bodySymptoms.length ? p.bodySymptoms.join(", ") : "none";
+    const mind = p.mindSymptoms.length ? p.mindSymptoms.join(", ") : "none";
+    lines.push(
+      `HealthPulse today (${p.date}): wellness score ${p.wellnessScore}/10` +
+      ` | body: ${body}` +
+      ` | mind: ${mind}` +
+      (p.note ? ` | note: "${p.note}"` : "")
+    );
+    if (ctx.pulseStreak > 1) {
+      lines.push(`HealthPulse streak: ${ctx.pulseStreak} consecutive days`);
+    }
+  } else if (ctx.recentPulses.length) {
+    const last = ctx.recentPulses[0];
+    const body = last.bodySymptoms.length ? last.bodySymptoms.join(", ") : "none";
+    const mind = last.mindSymptoms.length ? last.mindSymptoms.join(", ") : "none";
+    lines.push(
+      `Last HealthPulse (${last.date}): wellness score ${last.wellnessScore}/10 | body: ${body} | mind: ${mind}`
+    );
+  }
+
+  if (ctx.recentPulses.length >= 3) {
+    const scores = ctx.recentPulses.map((p) => `${p.date.slice(5)}:${p.wellnessScore}`).join(", ");
+    lines.push(`HealthPulse trend (recent): ${scores}`);
+
+    // Flag persistent low scores
+    const consecutiveLow = ctx.recentPulses.filter((p) => p.wellnessScore <= 4);
+    if (consecutiveLow.length >= 3) {
+      lines.push(
+        `ALERT: User has reported wellness score ≤4 for ${consecutiveLow.length} of their last ${ctx.recentPulses.length} check-ins — approach with extra care.`
+      );
+    }
+
+    // Aggregate common symptoms
+    const bodyFreq: Record<string, number> = {};
+    const mindFreq: Record<string, number> = {};
+    for (const p of ctx.recentPulses) {
+      for (const s of p.bodySymptoms) bodyFreq[s] = (bodyFreq[s] ?? 0) + 1;
+      for (const s of p.mindSymptoms) mindFreq[s] = (mindFreq[s] ?? 0) + 1;
+    }
+    const topBody = Object.entries(bodyFreq).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => `${k}(${v}x)`);
+    const topMind = Object.entries(mindFreq).sort((a, b) => b[1] - a[1]).slice(0, 3).map(([k, v]) => `${k}(${v}x)`);
+    if (topBody.length) lines.push(`Frequent body symptoms: ${topBody.join(", ")}`);
+    if (topMind.length) lines.push(`Frequent mind symptoms: ${topMind.join(", ")}`);
+  }
+
+  // ── Medications ──────────────────────────────────────────────────────────────
+  if (ctx.medicationSchedules?.length) {
+    const active = ctx.medicationSchedules.filter(m => m.active);
+    if (active.length) {
+      lines.push(`Active medications: ${active.map(m => `${m.name} ${m.dosage} (${m.frequency.replace(/_/g, " ")})`).join("; ")}`);
+    }
+  }
+  if (ctx.medicationAdherence7d !== undefined) {
+    const pct = Math.round(ctx.medicationAdherence7d * 100);
+    lines.push(`Medication adherence (last 7 days): ${pct}%${pct < 70 ? " — consider checking in gently" : ""}`);
+  }
+  if (ctx.todayMedLogs?.length) {
+    const taken = ctx.todayMedLogs.filter(l => l.takenAt && !l.skipped).length;
+    lines.push(`Medications taken today: ${taken}/${ctx.todayMedLogs.length}`);
+  }
+
   if (lines.length <= 3) {
     lines.push("No mood logs, journals, or vault data available yet.");
   }
@@ -200,6 +383,12 @@ function buildAwarenessSnippets(ctx: UserActivityContext | undefined, code: Chat
   if (ctx.isReturning && ctx.messageCount > 2) {
     if (lang === "hi") awareness.push("हम पहले भी बात कर चुके हैं");
     else awareness.push("we've spoken before");
+  }
+
+  if (ctx.todayPulse) {
+    const score = ctx.todayPulse.wellnessScore;
+    if (lang === "hi") awareness.push(`आपका आज का wellness score **${score}/10** है`);
+    else awareness.push(`your HealthPulse today is **${score}/10**`);
   }
 
   return awareness;
