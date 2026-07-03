@@ -10,10 +10,15 @@ import { extractConversationFacts } from "@/lib/graphExtractor";
 const LLM_TEMPERATURE = parseFloat(process.env.NOVA_LLM_TEMPERATURE ?? "0.7");
 const LLM_TOP_P = parseFloat(process.env.NOVA_LLM_TOP_P ?? "0.88");
 const LLM_MAX_TOKENS = parseInt(process.env.NOVA_LLM_MAX_TOKENS ?? "768", 10);
-const LLM_TIMEOUT_MS = parseInt(process.env.NOVA_LLM_TIMEOUT_MS ?? "28000", 10);
+// FIXED — Vercel hobby = 10s hard limit; use 9s so we have 1s margin for streaming
+const LLM_TIMEOUT_MS = parseInt(process.env.NOVA_LLM_TIMEOUT_MS ?? "9000", 10);
 const MAX_MESSAGES_IN = parseInt(process.env.NOVA_MAX_MESSAGES_IN ?? "40", 10);
 // ADDED — rough body size guard (bytes). 64 KB is generous for chat payloads.
 const MAX_BODY_BYTES = parseInt(process.env.NOVA_MAX_BODY_BYTES ?? "65536", 10);
+
+// ADDED — tell Vercel to allow up to 60s (Pro) or 10s (Hobby)
+// Must be a static literal — cannot be computed from env at module parse time
+export const maxDuration = 60;
 
 type ChatMessage = {
   role: "system" | "user" | "assistant";
@@ -123,6 +128,7 @@ function resolveProvider(): {
   endpoint: string;
   headers: Record<string, string>;
 } | null {
+  // Groq is preferred — faster, more reliable, better free tier
   const groqKey = process.env.GROQ_API_KEY;
   if (groqKey) {
     return {
@@ -135,16 +141,20 @@ function resolveProvider(): {
       },
     };
   }
+
+  // OpenRouter fallback — use a reliable free model
   const openRouterKey = process.env.OPENROUTER_API_KEY;
   if (openRouterKey) {
+    // Default to llama-3.3-8b-instruct:free which has better availability
+    const model = process.env.OPENROUTER_MODEL || "meta-llama/llama-3.3-8b-instruct:free";
     return {
       apiKey: openRouterKey,
-      model: process.env.OPENROUTER_MODEL || "meta-llama/llama-3.1-8b-instruct",
+      model,
       endpoint: "https://openrouter.ai/api/v1/chat/completions",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${openRouterKey}`,
-        "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000",
+        "HTTP-Referer": process.env.NEXT_PUBLIC_SITE_URL || "https://nova-health-ai.vercel.app",
         "X-Title": "NOVA Health",
       },
     };
@@ -283,6 +293,9 @@ export async function POST(req: Request) {
     const timeoutId = setTimeout(() => abortController.abort(), LLM_TIMEOUT_MS);
 
     let response: Response | null = null;
+    let usedModel = provider.model;
+
+    // First attempt with configured model
     try {
       response = await fetch(provider.endpoint, {
         method: "POST",
@@ -292,7 +305,6 @@ export async function POST(req: Request) {
           model: provider.model,
           messages: chatMessages,
           stream: true,
-          // ADDED — env-configurable with sensible defaults
           temperature: LLM_TEMPERATURE,
           top_p: LLM_TOP_P,
           max_tokens: LLM_MAX_TOKENS,
@@ -301,7 +313,6 @@ export async function POST(req: Request) {
     } catch (fetchErr: any) {
       clearTimeout(timeoutId);
       if (fetchErr?.name === "AbortError") {
-        // Timeout — stream a graceful message
         return streamTextAsNdjsonChunks(
           `I'm taking longer than usual to respond, ${userProfile?.name || "there"}. Please try again in a moment.`
         );
@@ -309,9 +320,43 @@ export async function POST(req: Request) {
       return streamTextAsNdjsonChunks(fallbackResponse(messages, userProfile));
     }
 
+    // If primary model fails (rate limit, unavailable), retry with a fallback model
+    if (response && !response.ok) {
+      const status = response.status;
+      const shouldRetry = status === 429 || status === 503 || status === 422;
+      if (shouldRetry) {
+        // Clear the timed-out controller and create a fresh one
+        const abortController2 = new AbortController();
+        const timeoutId2 = setTimeout(() => abortController2.abort(), LLM_TIMEOUT_MS);
+        const fallbackModel = "meta-llama/llama-3.2-11b-vision-instruct:free";
+        try {
+          response = await fetch(provider.endpoint, {
+            method: "POST",
+            headers: provider.headers,
+            signal: abortController2.signal,
+            body: JSON.stringify({
+              model: fallbackModel,
+              messages: chatMessages,
+              stream: true,
+              temperature: LLM_TEMPERATURE,
+              top_p: LLM_TOP_P,
+              max_tokens: LLM_MAX_TOKENS,
+            }),
+          });
+          usedModel = fallbackModel;
+        } catch {
+          // ignore retry error — fall through to the !response.ok check below
+        } finally {
+          clearTimeout(timeoutId2);
+        }
+      }
+    }
+
     clearTimeout(timeoutId);
 
     if (!response || !response.ok) {
+      const errBody = response ? await response.text().catch(() => "") : "";
+      console.error("[NOVA] LLM error", response?.status, errBody.slice(0, 200));
       return streamTextAsNdjsonChunks(fallbackResponse(messages, userProfile));
     }
 
