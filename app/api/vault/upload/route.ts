@@ -1,13 +1,21 @@
 import { NextResponse } from "next/server";
 import { Buffer } from "buffer";
-import { getAdminAuth, getAdminDb, firebaseAdmin } from "@/lib/firebaseAdmin";
+import { v2 as cloudinary } from "cloudinary";
+import { getAdminAuth, getAdminDb } from "@/lib/firebaseAdmin";
 import { analyzeMedicalDocument } from "@/lib/intelligence";
 import { updateGraphFromVault } from "@/lib/healthGraph";
 import type { AnalysisResult } from "@/lib/intelligence";
 
-// ADDED — configurable limits
+// Configure Cloudinary once at module load
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME!,
+  api_key:    process.env.CLOUDINARY_API_KEY!,
+  api_secret: process.env.CLOUDINARY_API_SECRET!,
+  secure: true,
+});
+
+// Configurable limits
 const MAX_FILE_BYTES = parseInt(process.env.NOVA_VAULT_MAX_FILE_BYTES ?? String(20 * 1024 * 1024), 10); // 20 MB
-const SIGNED_URL_TTL_DAYS = parseInt(process.env.NOVA_VAULT_SIGNED_URL_TTL_DAYS ?? "7", 10);
 
 // ADDED — allowed MIME types and extensions
 const ALLOWED_MIME_PREFIXES = ["application/pdf", "image/", "text/"];
@@ -203,18 +211,34 @@ export async function POST(req: Request) {
       analysis = await analyzeMedicalDocument(documentText, fileName);
     }
 
-    const filePath = `medicalVault/${userId}/${Date.now()}.${ext}`;
-    const bucket = firebaseAdmin.storage().bucket();
-    const storageFile = bucket.file(filePath);
+    // ── Upload to Cloudinary ───────────────────────────────────────────────
+    // Use upload_stream so we never write to disk — stream the buffer directly
+    const publicId = `medicalVault/${userId}/${Date.now()}`;
+    const resourceType = file.type.startsWith("image/") ? "image" : "raw";
 
-    await storageFile.save(buffer, {
-      contentType: file.type || "application/octet-stream",
-      resumable: false,
-    });
+    const cloudinaryResult = await new Promise<{ secure_url: string; public_id: string }>(
+      (resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          {
+            public_id: publicId,
+            resource_type: resourceType,
+            folder: "nova_vault",
+            // Tag with userId so assets are easy to find/delete per user
+            tags: [`user_${userId}`],
+            // Keep original filename in the context metadata
+            context: { original_name: fileName, user_id: userId },
+          },
+          (err, result) => {
+            if (err || !result) return reject(err ?? new Error("Cloudinary upload failed"));
+            resolve({ secure_url: result.secure_url, public_id: result.public_id });
+          }
+        );
+        uploadStream.end(buffer);
+      }
+    );
 
-    // ADDED — env-configurable signed URL TTL
-    const expiresAt = Date.now() + SIGNED_URL_TTL_DAYS * 24 * 60 * 60 * 1000;
-    const [signedUrl] = await storageFile.getSignedUrl({ action: "read", expires: expiresAt });
+    const fileUrl = cloudinaryResult.secure_url;
+    const storagePath = cloudinaryResult.public_id;
 
     // ADDED — try previous-report comparison; catch index errors gracefully
     let previousDoc: FirebaseFirestore.QueryDocumentSnapshot | null = null;
@@ -246,10 +270,9 @@ export async function POST(req: Request) {
       result: analysis,
       comparison,
       ext,
-      url: signedUrl,
-      storagePath: filePath,
+      url: fileUrl,
+      storagePath,
       createdAt: new Date(),
-      // ADDED — required by DashboardHome discussedWithNOVA filter (P0.2)
       discussedWithNOVA: false,
     };
 
